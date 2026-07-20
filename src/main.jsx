@@ -41,16 +41,16 @@ function AlmacenSelector({ onSelected }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('almacen_bases')
-        .select('*');
-
-      console.log("Respuesta de Supabase para almacenes:", data);
-      console.log("Error si lo hay:", error);
+        .select('*')
+        .order('nombre', { ascending: true });
 
       if (error) throw error;
       return data ?? [];
     },
-    staleTime: 60000,
-    refetchOnWindowFocus: false
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   const almacenes = almacenesQuery.data ?? [];
