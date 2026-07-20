@@ -1,8 +1,13 @@
-import { db, replaceShelfConfig } from './db';
+import { db, replaceShelfConfig, upsertShelfStates } from './db';
 import { supabase } from './supabaseClient';
 
 export const SYNC_INTERVAL_MS = 15000;
 export const SYNC_BATCH_SIZE = 50;
+export const SHELF_STATES = {
+  FULL: 'lleno',
+  EMPTY: 'vacio',
+  ORDERED: 'pedido'
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -265,6 +270,43 @@ export const syncService = {
         }
       });
     });
+  },
+
+  async updateManyShelfStates(items) {
+    await upsertShelfStates(items);
+  },
+
+  async markEmptyShelvesAsOrdered(shelves, statesById) {
+    const rows = shelves
+      .filter((shelf) => shelf.sku && statesById.get(shelf.id) === SHELF_STATES.EMPTY)
+      .map((shelf) => ({
+        id_balda: shelf.id,
+        estado: SHELF_STATES.ORDERED
+      }));
+
+    await this.updateManyShelfStates(rows);
+    return rows.length;
+  },
+
+  async getCurrentOperatorRole(almacenId) {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData?.user?.email;
+      if (!email) return 'operario';
+
+      const { data, error } = await supabase
+        .from('almacen_operadores')
+        .select('rol')
+        .eq('almacen_id', almacenId)
+        .eq('email', email)
+        .eq('activo', true)
+        .maybeSingle();
+
+      if (error) return 'operario';
+      return data?.rol === 'repositor' ? 'repositor' : 'operario';
+    } catch {
+      return 'operario';
+    }
   },
 
   async requestReposition(balda) {

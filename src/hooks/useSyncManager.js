@@ -20,6 +20,14 @@ export function useSyncManager(almacenId) {
     refetchOnWindowFocus: false
   });
 
+  const roleQuery = useQuery({
+    queryKey: ['operator-role', almacenId],
+    enabled: Boolean(almacenId) && online,
+    queryFn: () => syncService.getCurrentOperatorRole(almacenId),
+    staleTime: 300000,
+    refetchOnWindowFocus: false
+  });
+
   const syncMutation = useMutation({
     mutationFn: () => syncService.flushPendingQueue(),
     retry: 3,
@@ -56,8 +64,9 @@ export function useSyncManager(almacenId) {
       isSyncing: syncMutation.isPending,
       lastSyncError: syncMutation.error?.message ?? null,
       configLoading: configQuery.isLoading,
+      operatorRole: roleQuery.data ?? 'operario',
       syncNow
     }),
-    [online, pendingCount, syncMutation.isPending, syncMutation.error, configQuery.isLoading, syncNow]
+    [online, pendingCount, syncMutation.isPending, syncMutation.error, configQuery.isLoading, roleQuery.data, syncNow]
   );
 }

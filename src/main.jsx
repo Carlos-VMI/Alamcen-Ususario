@@ -171,7 +171,7 @@ function App() {
       </header>
 
       <main>
-        <WarehouseView config={config} estados={estados} />
+        <WarehouseView config={config} estados={estados} operatorRole={sync.operatorRole} />
       </main>
     </div>
   );

@@ -1,46 +1,47 @@
-import { Bell, CheckCircle2, PackageOpen } from 'lucide-react';
 import { syncService } from '../lib/syncService';
 
-export function BaldaCard({ balda, estado = 'vacio' }) {
-  const isFull = estado === 'lleno';
+export function BaldaCard({ balda, estado, operatorRole = 'operario' }) {
+  const currentState = estado || 'lleno';
+  const isFull = currentState === 'lleno';
+  const isEmpty = currentState === 'vacio';
+  const isOrdered = currentState === 'pedido';
   const hasArticle = Boolean(balda.sku);
-  const locationLabel = `${balda.modulo} E${balda.estante} ${balda.etiqueta_balda ?? `C${balda.posicion}`}`;
+  const isRepositor = operatorRole === 'repositor';
+  const suffixLabel = balda.sufijo || String(balda.posicion).padStart(2, '0');
+  const locationLabel = `E${balda.estante} ${balda.etiqueta_balda ?? `C${balda.posicion}`}`;
 
   const setState = async (nextState) => {
     await syncService.updateShelfState(balda.id, nextState);
   };
 
-  const handleReposition = async () => {
-    await syncService.requestReposition(balda);
+  const handleClick = async () => {
+    if (!hasArticle) return;
+    if (isOrdered && !isRepositor) return;
+    if (isOrdered && isRepositor) {
+      await setState('lleno');
+      return;
+    }
+    await setState(isEmpty ? 'lleno' : 'vacio');
   };
 
   return (
-    <article className={`balda-card ${isFull ? 'full' : 'empty'} ${hasArticle ? 'assigned' : 'unassigned'}`}>
+    <button
+      className={`balda-card ${currentState} ${hasArticle ? 'assigned' : 'unassigned'}`}
+      type="button"
+      onClick={handleClick}
+      disabled={!hasArticle || (isOrdered && !isRepositor)}
+      title={isOrdered && !isRepositor ? 'Pedido bloqueado hasta reposicion' : undefined}
+    >
       <div className="balda-heading">
         <strong>{balda.sku || 'Libre'}</strong>
         <small>{locationLabel}</small>
       </div>
       <p>{balda.descripcion || 'Sin articulo configurado'}</p>
       <div className="balda-meta">
-        <span>{balda.sufijo ? `Sufijo ${balda.sufijo}` : 'Sin sufijo'}</span>
+        <span>{isFull ? 'Lleno' : isOrdered ? 'Pedido' : 'Vacio'}</span>
         <span>Cap. {balda.capacidad || 0}</span>
       </div>
-      <div className="balda-actions">
-        <button type="button" onClick={() => setState('lleno')} aria-pressed={isFull}>
-          <CheckCircle2 size={17} />
-          Lleno
-        </button>
-        <button type="button" onClick={() => setState('vacio')} aria-pressed={!isFull}>
-          <PackageOpen size={17} />
-          Vacio
-        </button>
-      </div>
-      {!isFull && hasArticle && (
-        <button className="reposition-button" type="button" onClick={handleReposition}>
-          <Bell size={16} />
-          Reposicion
-        </button>
-      )}
-    </article>
+      <span className="balda-suffix">{suffixLabel}</span>
+    </button>
   );
 }

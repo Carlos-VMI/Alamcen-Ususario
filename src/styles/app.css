@@ -12,6 +12,8 @@
   --green-soft: #dcfce7;
   --red: #b42318;
   --red-soft: #fee4e2;
+  --yellow: #b7791f;
+  --yellow-soft: #fef3c7;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -220,6 +222,60 @@ main {
   color: var(--red);
 }
 
+.warehouse-screen {
+  display: grid;
+  gap: 14px;
+}
+
+.warehouse-toolbar {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.warehouse-toolbar h2 {
+  font-size: 16px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.warehouse-toolbar p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.pedido-button {
+  background: #facc15;
+  border-color: #eab308;
+  color: #713f12;
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.pedido-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.pedido-button span {
+  align-items: center;
+  background: #713f12;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 11px;
+  height: 20px;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 6px;
+}
+
 .warehouse-view {
   display: grid;
   gap: 18px;
@@ -256,7 +312,7 @@ main {
   display: grid;
   gap: 5px;
   grid-template-columns: 24px minmax(0, 1fr);
-  min-height: 74px;
+  min-height: 86px;
   margin-bottom: 7px;
 }
 
@@ -272,40 +328,63 @@ main {
   justify-content: center;
 }
 
+.row-label::before {
+  content: "E";
+}
+
 .shelf-cells {
   border-bottom: 10px solid #2f5e94;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   min-width: 0;
   padding-bottom: 4px;
 }
 
 .balda-card {
-  border: 2px solid #101010;
+  appearance: none;
+  border: 2px solid rgba(17, 24, 39, 0.26);
   border-radius: 4px;
+  color: #fff;
   display: grid;
   gap: 5px;
-  min-height: 60px;
+  grid-template-rows: auto minmax(14px, 1fr) auto auto;
+  justify-items: stretch;
+  min-height: 72px;
   min-width: 0;
   padding: 7px;
   position: relative;
+  text-align: left;
+  width: 100%;
 }
 
-.balda-card.full {
+.balda-card.lleno {
   background: linear-gradient(180deg, #1fbd75, var(--green));
-  color: #fff;
 }
 
-.balda-card.empty {
+.balda-card.vacio {
   background: linear-gradient(180deg, #ee4c45, var(--red));
-  color: #fff;
+}
+
+.balda-card.pedido {
+  background: linear-gradient(180deg, #facc15, var(--yellow));
+  border-color: rgba(113, 63, 18, 0.38);
+  color: #713f12;
 }
 
 .balda-card.unassigned {
   background: #e5e7eb;
   border-color: #b8c0cc;
   color: #344054;
+  cursor: default;
+}
+
+.balda-card:disabled {
+  cursor: not-allowed;
+}
+
+.balda-card.assigned:not(:disabled):active {
+  transform: translateY(1px);
 }
 
 .balda-heading {
@@ -315,11 +394,17 @@ main {
 }
 
 .balda-heading strong {
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.balda-heading small {
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .balda-heading small,
@@ -329,7 +414,7 @@ main {
 }
 
 .balda-card p {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.2;
   margin: 0;
   min-height: 0;
@@ -340,7 +425,7 @@ main {
 
 .balda-meta {
   display: flex;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   gap: 6px;
   justify-content: space-between;
@@ -348,32 +433,19 @@ main {
   opacity: 0.86;
 }
 
-.balda-actions {
-  display: grid;
-  gap: 4px;
-  grid-template-columns: 1fr 1fr;
-}
-
-.balda-actions button {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.14);
-  color: #344054;
-  font-size: 11px;
-  min-height: 28px;
-}
-
-.balda-actions button[aria-pressed="true"] {
-  background: #111827;
-  border-color: #111827;
-  color: #fff;
-}
-
-.reposition-button {
-  background: #111827;
-  color: #fff;
-  font-size: 11px;
-  min-height: 29px;
-  width: 100%;
+.balda-suffix {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  color: rgba(17, 24, 39, 0.78);
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 900;
+  height: 16px;
+  justify-content: center;
+  justify-self: center;
+  min-width: 28px;
+  padding: 0 6px;
 }
 
 .empty-row {
@@ -420,6 +492,11 @@ main {
   }
 
   .shelf-cells {
-    grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+    gap: 3px;
+  }
+
+  .balda-card {
+    min-height: 66px;
+    padding: 6px 4px;
   }
 }
