@@ -47,8 +47,10 @@ function AlmacenSelector({ onSelected }) {
       if (error) throw error;
       return data ?? [];
     },
-    staleTime: 60000,
-    refetchOnWindowFocus: false
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   const almacenes = almacenesQuery.data ?? [];

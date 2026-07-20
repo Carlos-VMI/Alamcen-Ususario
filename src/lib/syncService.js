@@ -12,19 +12,137 @@ function errorMessage(error) {
   return error?.message ?? String(error);
 }
 
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeSuffixes(sufijos) {
+  if (Array.isArray(sufijos)) return sufijos;
+  if (typeof sufijos === 'string') {
+    try {
+      const parsed = JSON.parse(sufijos);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function makeShelfId(moduleId, shelfNumber, position) {
+  return `${moduleId}-E${shelfNumber}-P${position}`;
+}
+
+function makeAssignmentKey(moduleId, shelfNumber, position) {
+  return `${moduleId}:${shelfNumber}:${position}`;
+}
+
+function collectArticleAssignments(articles) {
+  const assignments = new Map();
+
+  for (const article of articles) {
+    const directLocations = Array.isArray(article.ubicaciones) ? article.ubicaciones : [];
+
+    for (const location of directLocations) {
+      const moduleId = location.modulo_id ?? location.module_id;
+      const shelfNumber = toNumber(location.estante ?? location.numero_estante ?? location.shelf);
+      const position = toNumber(location.posicion ?? location.balda ?? location.position);
+      if (!moduleId || !shelfNumber || !position) continue;
+
+      assignments.set(makeAssignmentKey(moduleId, shelfNumber, position), {
+        articulo_id: article.id,
+        sku: `${article.sku}${location.sufijo ? `-${location.sufijo}` : ''}`,
+        descripcion: article.descripcion,
+        capacidad: toNumber(location.capacidad, 0)
+      });
+    }
+
+    const moduleId = article.modulo_id ?? article.module_id;
+    const shelfNumber = toNumber(article.estante ?? article.numero_estante ?? article.shelf);
+    const position = toNumber(article.posicion ?? article.balda ?? article.position);
+
+    if (moduleId && shelfNumber && position) {
+      const suffixes = normalizeSuffixes(article.sufijos);
+      const suffix = article.sufijo ?? suffixes[0]?.sufijo;
+      assignments.set(makeAssignmentKey(moduleId, shelfNumber, position), {
+        articulo_id: article.id,
+        sku: `${article.sku}${suffix ? `-${suffix}` : ''}`,
+        descripcion: article.descripcion,
+        capacidad: toNumber(article.capacidad ?? suffixes[0]?.capacidad, 0)
+      });
+    }
+  }
+
+  return assignments;
+}
+
+function buildShelfConfig({ modules, shelves, articles, almacenId }) {
+  const modulesById = new Map(modules.map((module) => [module.id, module]));
+  const assignments = collectArticleAssignments(articles);
+
+  return shelves.flatMap((shelf) => {
+    const module = modulesById.get(shelf.modulo_id);
+    if (!module) return [];
+
+    const count = Math.min(8, Math.max(0, toNumber(shelf.cantidad_baldas, 0)));
+    return Array.from({ length: count }, (_, index) => {
+      const position = index + 1;
+      const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position));
+
+      return {
+        id: makeShelfId(shelf.modulo_id, shelf.numero, position),
+        almacen_id: almacenId,
+        modulo_id: shelf.modulo_id,
+        modulo: module.nombre || `Modulo ${module.orden ?? ''}`.trim(),
+        estante_id: shelf.id,
+        estante: shelf.numero,
+        posicion: position,
+        articulo_id: assignment?.articulo_id ?? null,
+        sku: assignment?.sku ?? null,
+        descripcion: assignment?.descripcion ?? null,
+        capacidad: assignment?.capacidad ?? 0,
+        updated_at: [module.updated_at, shelf.updated_at, assignment?.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
+      };
+    });
+  });
+}
+
 export const syncService = {
   async downloadRemoteConfig(almacenId) {
-    const { data, error } = await supabase
-      .from('estanterias_config')
+    const { data: modules, error: modulesError } = await supabase
+      .from('almacen_modulos')
       .select('*')
       .eq('almacen_id', almacenId)
-      .order('modulo', { ascending: true })
-      .order('estante', { ascending: true })
-      .order('posicion', { ascending: true });
+      .order('orden', { ascending: true });
 
-    if (error) throw error;
+    if (modulesError) throw modulesError;
 
-    const rows = data ?? [];
+    const moduleIds = (modules ?? []).map((module) => module.id);
+    const { data: shelves, error: shelvesError } = moduleIds.length
+      ? await supabase
+        .from('almacen_estantes')
+        .select('*')
+        .in('modulo_id', moduleIds)
+        .order('numero', { ascending: true })
+      : { data: [], error: null };
+
+    if (shelvesError) throw shelvesError;
+
+    const { data: articles, error: articlesError } = await supabase
+      .from('almacen_articulos')
+      .select('*')
+      .eq('almacen_id', almacenId)
+      .order('descripcion', { ascending: true });
+
+    if (articlesError) throw articlesError;
+
+    const rows = buildShelfConfig({
+      modules: modules ?? [],
+      shelves: shelves ?? [],
+      articles: articles ?? [],
+      almacenId
+    });
     await replaceShelfConfig(rows);
     return rows;
   },
