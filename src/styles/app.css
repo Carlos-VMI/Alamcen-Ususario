@@ -68,6 +68,131 @@ main {
   padding: 16px;
 }
 
+.app-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.change-warehouse-button {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.setup-screen {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.setup-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(31, 41, 51, 0.12);
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+  padding: 28px;
+  width: 100%;
+}
+
+.setup-logo {
+  align-items: center;
+  background: var(--blue-soft);
+  border-radius: 14px;
+  display: flex;
+  height: 58px;
+  justify-content: center;
+  width: 58px;
+}
+
+.setup-logo span {
+  background: var(--blue);
+  border-radius: 8px;
+  display: block;
+  height: 30px;
+  position: relative;
+  width: 30px;
+}
+
+.setup-logo span::before,
+.setup-logo span::after {
+  background: rgba(255, 255, 255, 0.62);
+  content: "";
+  position: absolute;
+}
+
+.setup-logo span::before {
+  height: 100%;
+  left: 9px;
+  top: 0;
+  width: 3px;
+}
+
+.setup-logo span::after {
+  height: 3px;
+  left: 0;
+  top: 13px;
+  width: 100%;
+}
+
+.setup-card h1 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.setup-card p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.setup-label {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.setup-select {
+  appearance: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.setup-button {
+  background: var(--header);
+  color: #fff;
+  min-height: 44px;
+}
+
+.setup-message,
+.setup-error {
+  border-radius: 7px;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.setup-message {
+  background: #f8fafc;
+  color: #475467;
+}
+
+.setup-error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
 .status-indicator {
   align-items: center;
   border-radius: 999px;
@@ -222,6 +347,11 @@ main {
 
 @media (max-width: 760px) {
   .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-header-actions {
     align-items: flex-start;
     flex-direction: column;
   }
