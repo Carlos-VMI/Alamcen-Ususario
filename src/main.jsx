@@ -37,10 +37,10 @@ function AlmacenSelector({ onSelected }) {
   const [saveError, setSaveError] = useState('');
 
   const almacenesQuery = useQuery({
-    queryKey: ['almacenes'],
+    queryKey: ['almacen_bases'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('almacenes')
+        .from('almacen_bases')
         .select('id, nombre')
         .order('nombre', { ascending: true });
 
@@ -84,7 +84,7 @@ function AlmacenSelector({ onSelected }) {
 
         {almacenesQuery.isError ? (
           <div className="setup-error">
-            No se pudieron cargar los almacenes. Revisa la conexion y la tabla almacenes.
+            No se pudieron cargar los almacenes. Revisa la conexion y la tabla almacen_bases.
           </div>
         ) : null}
 
