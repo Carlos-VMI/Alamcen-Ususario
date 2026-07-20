@@ -30,19 +30,42 @@ function normalizeSuffixes(sufijos) {
   return [];
 }
 
+function normalizeLocations(ubicaciones) {
+  if (Array.isArray(ubicaciones)) return ubicaciones;
+  if (typeof ubicaciones === 'string') {
+    try {
+      const parsed = JSON.parse(ubicaciones);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeSuffix(value, index = 0) {
+  const text = String(value ?? '').trim();
+  if (text) return text.padStart(2, '0');
+  return String(index + 1).padStart(2, '0');
+}
+
 function makeShelfId(moduleId, shelfNumber, position) {
-  return `${moduleId}-E${shelfNumber}-P${position}`;
+  return `${moduleId}-E${shelfNumber}-C${position}`;
 }
 
 function makeAssignmentKey(moduleId, shelfNumber, position) {
   return `${moduleId}:${shelfNumber}:${position}`;
 }
 
+function makeDisplayLocation(module, shelfNumber, position) {
+  return `${module.nombre || `Modulo ${module.orden ?? ''}`.trim()} - Estante ${shelfNumber} - Balda ${position}`;
+}
+
 function collectArticleAssignments(articles) {
   const assignments = new Map();
 
   for (const article of articles) {
-    const directLocations = Array.isArray(article.ubicaciones) ? article.ubicaciones : [];
+    const directLocations = normalizeLocations(article.ubicaciones);
 
     for (const location of directLocations) {
       const moduleId = location.modulo_id ?? location.module_id;
@@ -52,9 +75,14 @@ function collectArticleAssignments(articles) {
 
       assignments.set(makeAssignmentKey(moduleId, shelfNumber, position), {
         articulo_id: article.id,
-        sku: `${article.sku}${location.sufijo ? `-${location.sufijo}` : ''}`,
+        codigo_articulo: article.codigo_articulo ?? null,
+        codigo_cliente: article.codigo_cliente ?? null,
+        sku_base: article.sku,
+        sufijo: location.sufijo ? normalizeSuffix(location.sufijo) : null,
+        sku: `${article.sku}${location.sufijo ? `-${normalizeSuffix(location.sufijo)}` : ''}`,
         descripcion: article.descripcion,
-        capacidad: toNumber(location.capacidad, 0)
+        capacidad: toNumber(location.capacidad, 0),
+        updated_at: [article.updated_at, location.updated_at].filter(Boolean).sort().at(-1)
       });
     }
 
@@ -67,9 +95,14 @@ function collectArticleAssignments(articles) {
       const suffix = article.sufijo ?? suffixes[0]?.sufijo;
       assignments.set(makeAssignmentKey(moduleId, shelfNumber, position), {
         articulo_id: article.id,
-        sku: `${article.sku}${suffix ? `-${suffix}` : ''}`,
+        codigo_articulo: article.codigo_articulo ?? null,
+        codigo_cliente: article.codigo_cliente ?? null,
+        sku_base: article.sku,
+        sufijo: suffix ? normalizeSuffix(suffix) : null,
+        sku: `${article.sku}${suffix ? `-${normalizeSuffix(suffix)}` : ''}`,
         descripcion: article.descripcion,
-        capacidad: toNumber(article.capacidad ?? suffixes[0]?.capacidad, 0)
+        capacidad: toNumber(article.capacidad ?? suffixes[0]?.capacidad, 0),
+        updated_at: article.updated_at
       });
     }
   }
@@ -77,18 +110,57 @@ function collectArticleAssignments(articles) {
   return assignments;
 }
 
+function flattenArticleSuffixes(articles) {
+  return [...articles]
+    .sort((a, b) => {
+      const bySku = String(a.sku ?? '').localeCompare(String(b.sku ?? ''), 'es', { numeric: true });
+      if (bySku !== 0) return bySku;
+      return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''));
+    })
+    .flatMap((article) => {
+      const suffixes = normalizeSuffixes(article.sufijos);
+      const normalizedSuffixes = suffixes.length ? suffixes : [{ sufijo: '01', capacidad: article.capacidad ?? 0 }];
+
+      return normalizedSuffixes.map((suffix, index) => {
+        const normalizedSuffix = normalizeSuffix(suffix.sufijo, index);
+        return {
+          articulo_id: article.id,
+          codigo_articulo: article.codigo_articulo ?? null,
+          codigo_cliente: article.codigo_cliente ?? null,
+          sku_base: article.sku,
+          sufijo: normalizedSuffix,
+          sku: `${article.sku}-${normalizedSuffix}`,
+          descripcion: article.descripcion,
+          capacidad: toNumber(suffix.capacidad ?? suffix.cantidad ?? article.capacidad, 0),
+          updated_at: article.updated_at
+        };
+      });
+    });
+}
+
 function buildShelfConfig({ modules, shelves, articles, almacenId }) {
   const modulesById = new Map(modules.map((module) => [module.id, module]));
   const assignments = collectArticleAssignments(articles);
+  const sequentialAssignments = flattenArticleSuffixes(
+    articles.filter((article) => !article.modulo_id && !article.module_id && normalizeLocations(article.ubicaciones).length === 0)
+  );
+  let sequentialIndex = 0;
 
-  return shelves.flatMap((shelf) => {
+  return [...shelves].sort((a, b) => {
+    const moduleA = modulesById.get(a.modulo_id)?.orden ?? 0;
+    const moduleB = modulesById.get(b.modulo_id)?.orden ?? 0;
+    if (moduleA !== moduleB) return moduleA - moduleB;
+    return toNumber(a.numero) - toNumber(b.numero);
+  }).flatMap((shelf) => {
     const module = modulesById.get(shelf.modulo_id);
     if (!module) return [];
 
     const count = Math.min(8, Math.max(0, toNumber(shelf.cantidad_baldas, 0)));
     return Array.from({ length: count }, (_, index) => {
       const position = index + 1;
-      const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position));
+      const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position))
+        ?? sequentialAssignments[sequentialIndex++]
+        ?? null;
 
       return {
         id: makeShelfId(shelf.modulo_id, shelf.numero, position),
@@ -98,10 +170,16 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         estante_id: shelf.id,
         estante: shelf.numero,
         posicion: position,
+        etiqueta_balda: `C${position}`,
         articulo_id: assignment?.articulo_id ?? null,
+        codigo_articulo: assignment?.codigo_articulo ?? null,
+        codigo_cliente: assignment?.codigo_cliente ?? null,
+        sku_base: assignment?.sku_base ?? null,
+        sufijo: assignment?.sufijo ?? null,
         sku: assignment?.sku ?? null,
         descripcion: assignment?.descripcion ?? null,
         capacidad: assignment?.capacidad ?? 0,
+        ubicacion: makeDisplayLocation(module, shelf.numero, position),
         updated_at: [module.updated_at, shelf.updated_at, assignment?.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
       };
     });
@@ -133,7 +211,7 @@ export const syncService = {
       .from('almacen_articulos')
       .select('*')
       .eq('almacen_id', almacenId)
-      .order('descripcion', { ascending: true });
+      .order('sku', { ascending: true });
 
     if (articlesError) throw articlesError;
 
@@ -144,6 +222,25 @@ export const syncService = {
       almacenId
     });
     await replaceShelfConfig(rows);
+    await this.downloadRemoteStates(rows.map((row) => row.id));
+    return rows;
+  },
+
+  async downloadRemoteStates(shelfIds) {
+    if (!shelfIds.length) return [];
+
+    const { data, error } = await supabase
+      .from('estados_baldas')
+      .select('*')
+      .in('id_balda', shelfIds);
+
+    if (error) throw error;
+
+    const rows = data ?? [];
+    if (rows.length) {
+      await db.estados_baldas.bulkPut(rows);
+    }
+
     return rows;
   },
 
@@ -183,7 +280,9 @@ export const syncService = {
         modulo: balda.modulo,
         estante: balda.estante,
         posicion: balda.posicion,
-        ubicacion: `${balda.modulo} - Estante ${balda.estante} - Posicion ${balda.posicion}`,
+        sufijo: balda.sufijo,
+        capacidad: balda.capacidad,
+        ubicacion: balda.ubicacion ?? `${balda.modulo} - Estante ${balda.estante} - Balda ${balda.posicion}`,
         created_at: createdAt
       }
     });

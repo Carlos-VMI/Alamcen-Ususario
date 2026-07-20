@@ -222,111 +222,170 @@ main {
 
 .warehouse-view {
   display: grid;
-  gap: 16px;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 .module-panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: #f3f4f6;
+  border: 1px solid #cfd5dd;
+  border-left: 7px solid #2f5e94;
+  border-right: 7px solid #2f5e94;
+  border-radius: 6px;
   box-shadow: 0 12px 30px rgba(31, 41, 51, 0.08);
-  padding: 14px;
+  min-width: 0;
+  padding: 0 8px 10px;
 }
 
 .module-panel h2 {
-  font-size: 17px;
-  margin: 0 0 12px;
+  align-items: center;
+  background: #d7d7d7;
+  border-bottom: 7px solid #2f5e94;
+  color: #111827;
+  display: flex;
+  font-size: 15px;
+  height: 48px;
+  justify-content: center;
+  margin: 0 -8px 8px;
+  padding: 0 8px;
+  text-align: center;
 }
 
 .shelf-row {
   align-items: stretch;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 42px minmax(0, 1fr);
-  margin-bottom: 8px;
+  gap: 5px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  min-height: 74px;
+  margin-bottom: 7px;
 }
 
 .row-label {
   align-items: center;
-  background: #5d6673;
-  border-radius: 6px;
+  background: #2f5e94;
+  border: 1px solid #244b78;
+  border-radius: 4px 0 0 4px;
   color: #fff;
   display: flex;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   justify-content: center;
 }
 
 .shelf-cells {
+  border-bottom: 10px solid #2f5e94;
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  min-width: 0;
+  padding-bottom: 4px;
 }
 
 .balda-card {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  min-height: 132px;
-  padding: 11px;
+  border: 2px solid #101010;
+  border-radius: 4px;
+  display: grid;
+  gap: 5px;
+  min-height: 60px;
+  min-width: 0;
+  padding: 7px;
+  position: relative;
 }
 
 .balda-card.full {
-  background: var(--blue-soft);
-  border-color: #93c5fd;
+  background: linear-gradient(180deg, #1fbd75, var(--green));
+  color: #fff;
 }
 
 .balda-card.empty {
-  background: #f8fafc;
-  border-color: #d0d5dd;
+  background: linear-gradient(180deg, #ee4c45, var(--red));
+  color: #fff;
+}
+
+.balda-card.unassigned {
+  background: #e5e7eb;
+  border-color: #b8c0cc;
+  color: #344054;
 }
 
 .balda-heading {
-  align-items: baseline;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
 .balda-heading strong {
-  font-size: 14px;
+  font-size: 12px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .balda-heading small,
 .balda-card p {
-  color: var(--muted);
+  color: inherit;
+  opacity: 0.78;
 }
 
 .balda-card p {
-  font-size: 13px;
-  margin: 8px 0 10px;
-  min-height: 32px;
+  font-size: 11px;
+  line-height: 1.2;
+  margin: 0;
+  min-height: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.balda-meta {
+  display: flex;
+  font-size: 10px;
+  font-weight: 800;
+  gap: 6px;
+  justify-content: space-between;
+  line-height: 1;
+  opacity: 0.86;
 }
 
 .balda-actions {
   display: grid;
-  gap: 8px;
+  gap: 4px;
   grid-template-columns: 1fr 1fr;
 }
 
 .balda-actions button {
-  background: #fff;
-  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.14);
   color: #344054;
-  min-height: 36px;
+  font-size: 11px;
+  min-height: 28px;
 }
 
 .balda-actions button[aria-pressed="true"] {
-  background: var(--header);
-  border-color: var(--header);
+  background: #111827;
+  border-color: #111827;
   color: #fff;
 }
 
 .reposition-button {
-  background: var(--red);
+  background: #111827;
   color: #fff;
-  margin-top: 8px;
-  min-height: 36px;
+  font-size: 11px;
+  min-height: 29px;
   width: 100%;
+}
+
+.empty-row {
+  align-items: center;
+  background: #e5e7eb;
+  border: 1px dashed #b8c0cc;
+  border-radius: 4px;
+  color: #667085;
+  display: flex;
+  font-size: 12px;
+  justify-content: center;
+  min-height: 58px;
 }
 
 .empty-state {
@@ -357,6 +416,10 @@ main {
   }
 
   .shelf-row {
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .shelf-cells {
+    grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
   }
 }

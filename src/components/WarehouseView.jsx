@@ -29,18 +29,23 @@ export function WarehouseView({ config, estados }) {
         return (
           <div className="module-panel" key={moduleName}>
             <h2>{moduleName}</h2>
-            {Object.entries(rows).map(([rowNumber, rowShelves]) => (
+            {Array.from({ length: 8 }, (_, index) => {
+              const rowNumber = String(index + 1);
+              const rowShelves = rows[rowNumber] ?? rows[index + 1] ?? [];
+              return (
               <div className="shelf-row" key={`${moduleName}-${rowNumber}`}>
-                <span className="row-label">E{rowNumber}</span>
+                <span className="row-label">{rowNumber}</span>
                 <div className="shelf-cells">
                   {rowShelves
                     .sort((a, b) => Number(a.posicion) - Number(b.posicion))
                     .map((balda) => (
                       <BaldaCard key={balda.id} balda={balda} estado={estadosById.get(balda.id)} />
                     ))}
+                  {rowShelves.length === 0 && <span className="empty-row">Sin baldas configuradas</span>}
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         );
       })}
