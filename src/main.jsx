@@ -41,7 +41,7 @@ function AlmacenSelector({ onSelected }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('almacen_bases')
-        .select('id, nombre')
+        .select('*')
         .order('nombre', { ascending: true });
 
       if (error) throw error;
@@ -56,6 +56,12 @@ function AlmacenSelector({ onSelected }) {
     () => almacenes.find((almacen) => almacen.id === selectedId),
     [almacenes, selectedId]
   );
+
+  const formatWarehouseLabel = (almacen) => {
+    const nombre = almacen.nombre || 'Almacen sin nombre';
+    const ubicacion = almacen.ubicacion || almacen.location || '';
+    return ubicacion ? `${nombre} (${ubicacion})` : nombre;
+  };
 
   const handleConfirm = () => {
     setSaveError('');
@@ -106,7 +112,7 @@ function AlmacenSelector({ onSelected }) {
               <option value="">Seleccionar...</option>
               {almacenes.map((almacen) => (
                 <option key={almacen.id} value={almacen.id}>
-                  {almacen.nombre}
+                  {formatWarehouseLabel(almacen)}
                 </option>
               ))}
             </select>
