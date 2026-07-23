@@ -10,10 +10,12 @@ function groupBy(items, getKey) {
   }, {});
 }
 
-export function WarehouseView({ config, estados, operatorRole = 'operario' }) {
+export function WarehouseView({ config, estados, operatorRole = 'operario', warehouseMeta }) {
   const estadosById = new Map(estados.map((estado) => [estado.id_balda, estado.estado]));
   const modules = groupBy(config, (row) => row.modulo || 'Modulo 1');
   const pendingOrderCount = config.filter((balda) => balda.sku && estadosById.get(balda.id) === 'vacio').length;
+  const normalizedRole = String(operatorRole || 'operario').toLowerCase();
+  const roleLabel = normalizedRole === 'administrador' ? 'Administrador' : normalizedRole === 'repositor' ? 'Repositor' : 'Operario';
 
   const handlePedido = async () => {
     await syncService.markEmptyShelvesAsOrdered(config, estadosById);
@@ -32,8 +34,11 @@ export function WarehouseView({ config, estados, operatorRole = 'operario' }) {
     <section className="warehouse-screen">
       <div className="warehouse-toolbar">
         <div>
-          <h2>Estado estanterias</h2>
-          <p>{operatorRole === 'repositor' ? 'Rol Repositor' : 'Rol Operario'}</p>
+          <h2>{warehouseMeta?.nombre || 'Estado estanterias'}</h2>
+          <p>
+            {warehouseMeta?.ubicacion ? `${warehouseMeta.ubicacion} - ` : ''}
+            Rol {roleLabel}
+          </p>
         </div>
         <button className="pedido-button" type="button" onClick={handlePedido} disabled={pendingOrderCount === 0}>
           Pedido
@@ -50,21 +55,28 @@ export function WarehouseView({ config, estados, operatorRole = 'operario' }) {
             {Array.from({ length: 8 }, (_, index) => {
               const rowNumber = String(index + 1);
               const rowShelves = rows[rowNumber] ?? rows[index + 1] ?? [];
+              const sortedShelves = [...rowShelves].sort((a, b) => Number(a.posicion) - Number(b.posicion));
               return (
               <div className="shelf-row" key={`${moduleName}-${rowNumber}`}>
                 <span className="row-label">{rowNumber}</span>
-                <div className="shelf-cells">
-                  {rowShelves
-                    .sort((a, b) => Number(a.posicion) - Number(b.posicion))
+                <div
+                  className="shelf-cells"
+                  style={{
+                    gridTemplateColumns: sortedShelves.length
+                      ? `repeat(${sortedShelves.length}, minmax(0, 1fr))`
+                      : '1fr'
+                  }}
+                >
+                  {sortedShelves
                     .map((balda) => (
                       <BaldaCard
                         key={balda.id}
                         balda={balda}
                         estado={estadosById.get(balda.id)}
-                        operatorRole={operatorRole}
+                        operatorRole={normalizedRole}
                       />
                     ))}
-                  {rowShelves.length === 0 && <span className="empty-row">Sin baldas configuradas</span>}
+                  {sortedShelves.length === 0 && <span className="empty-row">Sin baldas configuradas</span>}
                 </div>
               </div>
             );

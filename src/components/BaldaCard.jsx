@@ -6,7 +6,8 @@ export function BaldaCard({ balda, estado, operatorRole = 'operario' }) {
   const isEmpty = currentState === 'vacio';
   const isOrdered = currentState === 'pedido';
   const hasArticle = Boolean(balda.sku);
-  const isRepositor = operatorRole === 'repositor';
+  const normalizedRole = String(operatorRole || 'operario').toLowerCase();
+  const canReplenish = normalizedRole === 'repositor' || normalizedRole === 'administrador' || normalizedRole === 'admin';
   const suffixLabel = balda.sufijo || String(balda.posicion).padStart(2, '0');
   const locationLabel = `E${balda.estante} ${balda.etiqueta_balda ?? `C${balda.posicion}`}`;
 
@@ -16,8 +17,8 @@ export function BaldaCard({ balda, estado, operatorRole = 'operario' }) {
 
   const handleClick = async () => {
     if (!hasArticle) return;
-    if (isOrdered && !isRepositor) return;
-    if (isOrdered && isRepositor) {
+    if (isOrdered && !canReplenish) return;
+    if (isOrdered && canReplenish) {
       await setState('lleno');
       return;
     }
@@ -29,8 +30,8 @@ export function BaldaCard({ balda, estado, operatorRole = 'operario' }) {
       className={`balda-card ${currentState} ${hasArticle ? 'assigned' : 'unassigned'}`}
       type="button"
       onClick={handleClick}
-      disabled={!hasArticle || (isOrdered && !isRepositor)}
-      title={isOrdered && !isRepositor ? 'Pedido bloqueado hasta reposicion' : undefined}
+      disabled={!hasArticle || (isOrdered && !canReplenish)}
+      title={isOrdered && !canReplenish ? 'Pedido bloqueado hasta reposicion' : undefined}
     >
       <div className="balda-heading">
         <strong>{balda.sku || 'Libre'}</strong>

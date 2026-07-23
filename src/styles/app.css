@@ -76,14 +76,6 @@ main {
   gap: 10px;
 }
 
-.change-warehouse-button {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #fff;
-  min-height: 36px;
-  padding: 0 12px;
-}
-
 .setup-screen {
   align-items: center;
   display: flex;
@@ -162,6 +154,17 @@ main {
 }
 
 .setup-select {
+  appearance: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.setup-input {
   appearance: none;
   background: #fff;
   border: 1px solid var(--line);
@@ -279,7 +282,7 @@ main {
 .warehouse-view {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
 .module-panel {
@@ -336,7 +339,6 @@ main {
   border-bottom: 10px solid #2f5e94;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
   min-width: 0;
   padding-bottom: 4px;
 }

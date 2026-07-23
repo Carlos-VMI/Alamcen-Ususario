@@ -54,6 +54,13 @@ function normalizeSuffix(value, index = 0) {
   return String(index + 1).padStart(2, '0');
 }
 
+function normalizeRole(role) {
+  const value = String(role || '').toLowerCase();
+  if (value === 'admin' || value === 'administrador') return 'administrador';
+  if (value === 'repositor') return 'repositor';
+  return 'operario';
+}
+
 function makeShelfId(moduleId, shelfNumber, position) {
   return `${moduleId}-E${shelfNumber}-C${position}`;
 }
@@ -303,7 +310,7 @@ export const syncService = {
         .maybeSingle();
 
       if (error) return 'operario';
-      return data?.rol === 'repositor' ? 'repositor' : 'operario';
+      return normalizeRole(data?.rol);
     } catch {
       return 'operario';
     }
