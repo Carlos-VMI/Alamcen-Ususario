@@ -77,6 +77,10 @@ function makeDisplayLocation(module, shelfNumber, position) {
   return `${module.nombre || `Modulo ${module.orden ?? ''}`.trim()} - Estante ${shelfNumber} - Balda ${position}`;
 }
 
+function makeCompactLocation(module, shelfNumber, position) {
+  return `M${toNumber(module.orden, 0)}E${shelfNumber}C${position}`;
+}
+
 function parseCoordinate(value) {
   const text = String(value ?? '').toUpperCase();
   const match = text.match(/M(?:ODULO)?\s*0*(\d+)\s*E\s*0*(\d+)\s*C\s*0*(\d+)/i);
@@ -212,11 +216,13 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         almacen_id: almacenId,
         modulo_id: shelf.modulo_id,
         modulo: module.nombre || `Modulo ${module.orden ?? ''}`.trim(),
+        modulo_orden: toNumber(module.orden, 0),
         estante_id: shelf.id,
         estante: shelf.numero,
         posicion: position,
         etiqueta_balda: `C${position}`,
-        ubicacion: makeDisplayLocation(module, shelf.numero, position)
+        ubicacion: makeDisplayLocation(module, shelf.numero, position),
+        codigo_ubicacion: makeCompactLocation(module, shelf.numero, position)
       }));
 
       return {
@@ -224,6 +230,7 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         almacen_id: almacenId,
         modulo_id: shelf.modulo_id,
         modulo: module.nombre || `Modulo ${module.orden ?? ''}`.trim(),
+        modulo_orden: toNumber(module.orden, 0),
         estante_id: shelf.id,
         estante: shelf.numero,
         posicion: position,
@@ -237,6 +244,7 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         capacidad: cubetas.reduce((sum, cubeta) => sum + toNumber(cubeta.capacidad, 0), 0),
         cubetas,
         ubicacion: makeDisplayLocation(module, shelf.numero, position),
+        codigo_ubicacion: makeCompactLocation(module, shelf.numero, position),
         updated_at: [module.updated_at, shelf.updated_at, assignment?.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
       };
     });
