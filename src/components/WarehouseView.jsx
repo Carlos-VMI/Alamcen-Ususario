@@ -31,12 +31,22 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
 
           return (
             <div className="overview-row" key={`${moduleName}-mini-${rowNumber}`}>
-              {sortedShelves.map((shelf) => (
-                <span
-                  className={`overview-cell ${stateClassForShelf(shelf, estadosById)}`}
-                  key={shelf.id}
-                />
-              ))}
+              <div
+                className="overview-row-cells"
+                style={{
+                  gridTemplateColumns: sortedShelves.length
+                    ? `repeat(${sortedShelves.length}, minmax(0, 1fr))`
+                    : '1fr'
+                }}
+              >
+                {sortedShelves.map((shelf) => (
+                  <span
+                    className={`overview-cell ${stateClassForShelf(shelf, estadosById)}`}
+                    key={shelf.id}
+                  />
+                ))}
+                {sortedShelves.length === 0 ? <span className="overview-cell unassigned" /> : null}
+              </div>
             </div>
           );
         })}

@@ -27,6 +27,15 @@ body {
   color: var(--ink);
 }
 
+.app-header,
+.module-panel h2,
+.row-label,
+.column-label,
+.overview-module > strong {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 button {
   align-items: center;
   border: 1px solid transparent;
@@ -326,7 +335,7 @@ main {
 
 .split-layout {
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 50%) minmax(0, 50%);
 }
 
 .active-module-area {
@@ -385,9 +394,12 @@ main {
 }
 
 .overview-row {
+  min-height: 12px;
+}
+
+.overview-row-cells {
   display: grid;
   gap: 2px;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
   min-height: 12px;
 }
 
@@ -492,6 +504,7 @@ main {
   font-weight: 900;
   justify-content: center;
   text-shadow: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -566,6 +579,8 @@ main {
   cursor: default;
   font-size: 12px;
   line-height: 1;
+  pointer-events: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -666,6 +681,9 @@ main {
   justify-content: center;
   line-height: 1;
   min-height: 16px;
+  pointer-events: none;
+  text-shadow: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -716,25 +734,6 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.sku-cell.items .cubeta-card {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  color: #1f2937;
-  grid-template-rows: auto auto 1fr auto;
-  min-height: 64px;
-}
-
-.sku-cell.items .cubeta-suffix {
-  background: #2f5e94;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 900;
-  justify-self: center;
-  min-width: 28px;
-  padding: 2px 7px;
 }
 
 .empty-row {

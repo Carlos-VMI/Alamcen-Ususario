@@ -25,10 +25,10 @@ function doPost(e) {
 
     SpreadsheetApp.flush();
 
-    var exportUrl = 'https://www.googleapis.com/drive/v3/files/' + spreadsheet.getId() + '/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    var exportUrl = 'https://www.googleapis.com/drive/v3/files/' + spreadsheet.getId() + '/export?mimeType=application/vnd.ms-excel';
     var blob = UrlFetchApp.fetch(exportUrl, {
       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }
-    }).getBlob().setName('CTD_ES.xlsx');
+    }).getBlob().setContentType('application/vnd.ms-excel').setName('CTD_ES.xls');
 
     var to = data.to || 'fontagnol@hotmail.com';
     var subject = data.subject || 'Pedido de reposicion';
@@ -36,12 +36,12 @@ function doPost(e) {
     var operatorName = data.operator && data.operator.nombre ? data.operator.nombre : 'Operario';
     var html = '<p>Pedido de reposicion generado desde ' + warehouseName + '.</p>' +
       '<p>Operario: ' + operatorName + '</p>' +
-      '<p>Adjunto: CTD_ES.xlsx</p>';
+      '<p>Adjunto: CTD_ES.xls</p>';
 
     GmailApp.sendEmail(to, subject, 'Pedido de reposicion adjunto.', {
       htmlBody: html,
       attachments: [blob],
-      replyTo: data.from || 'fontagnol@hotmail.com'
+      replyTo: data.from || 'vmi.intelligent@gmail.com'
     });
 
     DriveApp.getFileById(spreadsheet.getId()).setTrashed(true);

@@ -25,7 +25,7 @@ export async function sendPedidoEmail({ rows, warehouse, operator }) {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       type: 'pedido_reposicion',
-      from: 'fontagnol@hotmail.com',
+      from: 'vmi.intelligent@gmail.com',
       to: 'fontagnol@hotmail.com',
       subject: `Pedido de reposicion - ${warehouse?.nombre || 'Almacen'}`,
       warehouse,
