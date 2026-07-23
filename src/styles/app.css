@@ -59,15 +59,19 @@ button {
 }
 
 .app-header h1 {
+  cursor: default;
   font-size: 20px;
   line-height: 1.1;
   margin: 0;
+  user-select: none;
 }
 
 .app-header p {
   color: rgba(255, 255, 255, 0.74);
+  cursor: default;
   font-size: 13px;
   margin: 5px 0 0;
+  user-select: none;
 }
 
 main {
@@ -368,6 +372,7 @@ main {
   background: #d7d7d7;
   border-bottom: 7px solid #2f5e94;
   color: #111827;
+  cursor: default;
   display: flex;
   font-size: 15px;
   height: 48px;
@@ -375,6 +380,7 @@ main {
   margin: 0 -8px 8px;
   padding: 0 8px;
   text-align: center;
+  user-select: none;
 }
 
 .shelf-row {
@@ -425,6 +431,15 @@ main {
   width: 100%;
 }
 
+.sku-cell.estado {
+  grid-template-rows: 1fr;
+}
+
+.sku-cell.assigned {
+  border-color: #16a34a;
+  box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.18);
+}
+
 .sku-cell.unassigned {
   background: #e5e7eb;
   border-color: #b8c0cc;
@@ -473,6 +488,7 @@ main {
   min-width: 0;
   padding: 5px 3px;
   text-align: center;
+  user-select: none;
 }
 
 .cubeta-card.lleno {

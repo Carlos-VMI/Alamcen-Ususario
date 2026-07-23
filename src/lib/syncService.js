@@ -77,6 +77,18 @@ function makeDisplayLocation(module, shelfNumber, position) {
   return `${module.nombre || `Modulo ${module.orden ?? ''}`.trim()} - Estante ${shelfNumber} - Balda ${position}`;
 }
 
+function parseCoordinate(value) {
+  const text = String(value ?? '').toUpperCase();
+  const match = text.match(/M(?:ODULO)?\s*0*(\d+)\s*E\s*0*(\d+)\s*C\s*0*(\d+)/i);
+  if (!match) return null;
+
+  return {
+    moduleOrder: toNumber(match[1], null),
+    shelfNumber: toNumber(match[2], null),
+    position: toNumber(match[3], null)
+  };
+}
+
 function buildArticleCubetas(article, suffixSource) {
   const suffixes = normalizeSuffixes(suffixSource).length
     ? normalizeSuffixes(suffixSource)
@@ -98,8 +110,9 @@ function buildArticleCubetas(article, suffixSource) {
   });
 }
 
-function collectArticleAssignments(articles) {
+function collectArticleAssignments(articles, modules) {
   const assignments = new Map();
+  const modulesByOrder = new Map(modules.map((module) => [toNumber(module.orden, 0), module]));
 
   for (const article of articles) {
     const directLocations = normalizeLocations(article.ubicaciones);
@@ -148,40 +161,35 @@ function collectArticleAssignments(articles) {
         updated_at: article.updated_at
       });
     }
+
+    const coordinate = parseCoordinate(article.ubicacion)
+      ?? parseCoordinate(article.sku)
+      ?? parseCoordinate(article.codigo_articulo)
+      ?? parseCoordinate(article.codigo_cliente);
+
+    if (coordinate?.moduleOrder && coordinate.shelfNumber && coordinate.position) {
+      const module = modulesByOrder.get(coordinate.moduleOrder);
+      if (module) {
+        assignments.set(makeAssignmentKey(module.id, coordinate.shelfNumber, coordinate.position), {
+          articulo_id: article.id,
+          codigo_articulo: article.codigo_articulo ?? null,
+          codigo_cliente: article.codigo_cliente ?? null,
+          sku_base: article.sku,
+          sku: article.sku,
+          descripcion: article.descripcion,
+          cubetas: buildArticleCubetas(article, article.sufijos),
+          updated_at: article.updated_at
+        });
+      }
+    }
   }
 
   return assignments;
 }
 
-function flattenArticleSuffixes(articles) {
-  return [...articles]
-    .sort((a, b) => {
-      const bySku = String(a.sku ?? '').localeCompare(String(b.sku ?? ''), 'es', { numeric: true });
-      if (bySku !== 0) return bySku;
-      return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''));
-    })
-    .map((article) => {
-      const suffixes = normalizeSuffixes(article.sufijos);
-      return {
-        articulo_id: article.id,
-        codigo_articulo: article.codigo_articulo ?? null,
-        codigo_cliente: article.codigo_cliente ?? null,
-        sku_base: article.sku,
-        sku: article.sku,
-        descripcion: article.descripcion,
-        cubetas: buildArticleCubetas(article, suffixes.length ? suffixes : [{ sufijo: '01', capacidad: article.capacidad ?? 0 }]),
-        updated_at: article.updated_at
-      };
-    });
-}
-
 function buildShelfConfig({ modules, shelves, articles, almacenId }) {
   const modulesById = new Map(modules.map((module) => [module.id, module]));
-  const assignments = collectArticleAssignments(articles);
-  const sequentialAssignments = flattenArticleSuffixes(
-    articles.filter((article) => !article.modulo_id && !article.module_id && normalizeLocations(article.ubicaciones).length === 0)
-  );
-  let sequentialIndex = 0;
+  const assignments = collectArticleAssignments(articles, modules);
 
   return [...shelves].sort((a, b) => {
     const moduleA = modulesById.get(a.modulo_id)?.orden ?? 0;
@@ -196,7 +204,6 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
     return Array.from({ length: count }, (_, index) => {
       const position = index + 1;
       const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position))
-        ?? sequentialAssignments[sequentialIndex++]
         ?? null;
       const shelfId = makeShelfId(shelf.modulo_id, shelf.numero, position);
       const cubetas = (assignment?.cubetas ?? []).map((cubeta, cubetaIndex) => ({
@@ -377,6 +384,23 @@ export const syncService = {
   },
 
   async enqueue(operation) {
+    if (operation.tipo === 'estado_balda.updated') {
+      const existing = await db.cola_sincronizacion
+        .where('entity_id')
+        .equals(operation.entity_id)
+        .and((item) => item.tipo === operation.tipo)
+        .first();
+
+      if (existing) {
+        return db.cola_sincronizacion.update(existing.id, {
+          payload: operation.payload,
+          attempts: 0,
+          created_at: operation.created_at ?? nowIso(),
+          last_error: null
+        });
+      }
+    }
+
     return db.cola_sincronizacion.add({
       ...operation,
       attempts: 0,
@@ -405,7 +429,6 @@ export const syncService = {
           attempts: (item.attempts ?? 0) + 1,
           last_error: errorMessage(error)
         });
-        throw error;
       }
     }
 
@@ -414,9 +437,14 @@ export const syncService = {
 
   async syncQueueItem(item) {
     if (item.tipo === 'estado_balda.updated') {
-      const { error } = await supabase.from('estados_baldas').upsert(item.payload, {
-        onConflict: 'id_balda'
-      });
+      const payload = {
+        id_balda: item.payload.id_balda,
+        estado: item.payload.estado,
+        updated_at: item.payload.updated_at
+      };
+      const { error } = await supabase
+        .from('estados_baldas')
+        .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false });
 
       if (error) throw error;
 

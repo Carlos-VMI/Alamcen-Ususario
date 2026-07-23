@@ -28,10 +28,12 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
 
   return (
     <article className={`sku-cell ${hasArticle ? 'assigned' : 'unassigned'} ${viewMode}`}>
-      <div className="sku-cell-head">
-        <strong>{balda.sku || 'Libre'}</strong>
-        <span>{locationLabel}</span>
-      </div>
+      {viewMode === 'items' ? (
+        <div className="sku-cell-head">
+          <strong>{balda.sku || 'Libre'}</strong>
+          <span>{locationLabel}</span>
+        </div>
+      ) : null}
 
       <div
         className="cubeta-grid"
@@ -54,7 +56,6 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
               {viewMode === 'items' ? (
                 <>
                   <span className="cubeta-suffix">{suffix}</span>
-                  <strong>{cubeta.sku || '-'}</strong>
                   <small>{cubeta.descripcion || 'Sin articulo'}</small>
                   <em>Cap. {cubeta.capacidad || 0}</em>
                 </>
