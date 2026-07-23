@@ -1,5 +1,4 @@
 import { BaldaCard } from './BaldaCard';
-import { syncService } from '../lib/syncService';
 
 function groupBy(items, getKey) {
   return items.reduce((groups, item) => {
@@ -10,16 +9,10 @@ function groupBy(items, getKey) {
   }, {});
 }
 
-export function WarehouseView({ config, estados, operatorRole = 'operario', warehouseMeta }) {
+export function WarehouseView({ config, estados, operatorRole = 'operario', viewMode = 'estado' }) {
   const estadosById = new Map(estados.map((estado) => [estado.id_balda, estado.estado]));
   const modules = groupBy(config, (row) => row.modulo || 'Modulo 1');
-  const pendingOrderCount = config.filter((balda) => balda.sku && estadosById.get(balda.id) === 'vacio').length;
   const normalizedRole = String(operatorRole || 'operario').toLowerCase();
-  const roleLabel = normalizedRole === 'administrador' ? 'Administrador' : normalizedRole === 'repositor' ? 'Repositor' : 'Operario';
-
-  const handlePedido = async () => {
-    await syncService.markEmptyShelvesAsOrdered(config, estadosById);
-  };
 
   if (config.length === 0) {
     return (
@@ -32,20 +25,6 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', ware
 
   return (
     <section className="warehouse-screen">
-      <div className="warehouse-toolbar">
-        <div>
-          <h2>{warehouseMeta?.nombre || 'Estado estanterias'}</h2>
-          <p>
-            {warehouseMeta?.ubicacion ? `${warehouseMeta.ubicacion} - ` : ''}
-            Rol {roleLabel}
-          </p>
-        </div>
-        <button className="pedido-button" type="button" onClick={handlePedido} disabled={pendingOrderCount === 0}>
-          Pedido
-          {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
-        </button>
-      </div>
-
       <div className="warehouse-view">
       {Object.entries(modules).map(([moduleName, shelves]) => {
         const rows = groupBy(shelves, (row) => row.estante);
@@ -72,8 +51,9 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', ware
                       <BaldaCard
                         key={balda.id}
                         balda={balda}
-                        estado={estadosById.get(balda.id)}
+                        estadosById={estadosById}
                         operatorRole={normalizedRole}
+                        viewMode={viewMode}
                       />
                     ))}
                   {sortedShelves.length === 0 && <span className="empty-row">Sin baldas configuradas</span>}

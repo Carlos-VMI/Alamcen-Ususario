@@ -6,6 +6,7 @@ import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
 import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
+import { syncService } from './lib/syncService';
 import { supabase } from './lib/supabaseClient';
 import './styles/app.css';
 
@@ -379,9 +380,17 @@ function App() {
   const [operator, setOperator] = useState(() => getStoredOperator());
   const [pendingAdminOperator, setPendingAdminOperator] = useState(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('estado');
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const sync = useSyncManager(almacenId);
+  const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado.estado])), [estados]);
+  const pendingOrderCount = useMemo(() => (
+    config
+      .flatMap((shelf) => shelf.cubetas?.length ? shelf.cubetas : [shelf])
+      .filter((cubeta) => cubeta.sku && estadosById.get(cubeta.id) === 'vacio')
+      .length
+  ), [config, estadosById]);
 
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
     if (needsWarehouseSelection) {
@@ -405,6 +414,10 @@ function App() {
     setLogoutOpen(false);
     setOperator(null);
     setPendingAdminOperator(null);
+  };
+
+  const handlePedido = async () => {
+    await syncService.markEmptyShelvesAsOrdered(config, estadosById);
   };
 
   if (!operator && !pendingAdminOperator) {
@@ -431,6 +444,26 @@ function App() {
           </p>
         </div>
         <div className="app-header-actions">
+          <div className="view-toggle" role="group" aria-label="Vista">
+            <button
+              className={viewMode === 'estado' ? 'active' : ''}
+              type="button"
+              onClick={() => setViewMode('estado')}
+            >
+              Estado
+            </button>
+            <button
+              className={viewMode === 'items' ? 'active' : ''}
+              type="button"
+              onClick={() => setViewMode('items')}
+            >
+              Items
+            </button>
+          </div>
+          <button className="pedido-button" type="button" onClick={handlePedido} disabled={pendingOrderCount === 0}>
+            Pedido
+            {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
+          </button>
           <StatusIndicator {...sync} />
           <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
             Salir
@@ -439,7 +472,7 @@ function App() {
       </header>
 
       <main>
-        <WarehouseView config={config} estados={estados} operatorRole={operator.rol} warehouseMeta={warehouseMeta} />
+        <WarehouseView config={config} estados={estados} operatorRole={operator.rol} viewMode={viewMode} />
       </main>
 
       {logoutOpen ? (

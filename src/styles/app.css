@@ -52,6 +52,10 @@ button {
   justify-content: space-between;
   min-height: 72px;
   padding: 14px 18px;
+  position: sticky;
+  top: 0;
+  user-select: none;
+  z-index: 10;
 }
 
 .app-header h1 {
@@ -74,6 +78,27 @@ main {
   align-items: center;
   display: flex;
   gap: 10px;
+}
+
+.view-toggle {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.view-toggle button {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  min-height: 30px;
+  padding: 0 11px;
+}
+
+.view-toggle button.active {
+  background: #fff;
+  color: var(--header);
 }
 
 .logout-button {
@@ -295,29 +320,6 @@ main {
   gap: 14px;
 }
 
-.warehouse-toolbar {
-  align-items: center;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  display: flex;
-  gap: 14px;
-  justify-content: space-between;
-  padding: 12px 14px;
-}
-
-.warehouse-toolbar h2 {
-  font-size: 16px;
-  line-height: 1.1;
-  margin: 0;
-}
-
-.warehouse-toolbar p {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 4px 0 0;
-}
-
 .pedido-button {
   background: #facc15;
   border-color: #eab308;
@@ -408,59 +410,37 @@ main {
   padding-bottom: 4px;
 }
 
-.balda-card {
+.sku-cell {
   appearance: none;
-  border: 2px solid rgba(17, 24, 39, 0.26);
+  background: #f8fafc;
+  border: 1px solid rgba(17, 24, 39, 0.18);
   border-radius: 4px;
-  color: #fff;
   display: grid;
-  gap: 5px;
-  grid-template-rows: auto minmax(14px, 1fr) auto auto;
-  justify-items: stretch;
-  min-height: 72px;
+  gap: 4px;
+  grid-template-rows: auto 1fr;
+  min-height: 78px;
   min-width: 0;
-  padding: 7px;
+  padding: 4px;
   position: relative;
-  text-align: left;
   width: 100%;
 }
 
-.balda-card.lleno {
-  background: linear-gradient(180deg, #1fbd75, var(--green));
-}
-
-.balda-card.vacio {
-  background: linear-gradient(180deg, #ee4c45, var(--red));
-}
-
-.balda-card.pedido {
-  background: linear-gradient(180deg, #facc15, var(--yellow));
-  border-color: rgba(113, 63, 18, 0.38);
-  color: #713f12;
-}
-
-.balda-card.unassigned {
+.sku-cell.unassigned {
   background: #e5e7eb;
   border-color: #b8c0cc;
   color: #344054;
-  cursor: default;
 }
 
-.balda-card:disabled {
-  cursor: not-allowed;
-}
-
-.balda-card.assigned:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-.balda-heading {
-  display: grid;
-  gap: 2px;
+.sku-cell-head {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
   min-width: 0;
 }
 
-.balda-heading strong {
+.sku-cell-head strong {
+  color: #111827;
   font-size: 11px;
   line-height: 1.1;
   overflow: hidden;
@@ -468,51 +448,99 @@ main {
   white-space: nowrap;
 }
 
-.balda-heading small {
+.sku-cell-head span {
+  color: #667085;
   font-size: 9px;
   font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
 }
 
-.balda-heading small,
-.balda-card p {
-  color: inherit;
-  opacity: 0.78;
+.cubeta-grid {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
-.balda-card p {
-  font-size: 10px;
-  line-height: 1.2;
-  margin: 0;
-  min-height: 0;
+.cubeta-card {
+  border: 1px solid rgba(17, 24, 39, 0.24);
+  border-radius: 4px;
+  color: #fff;
+  display: grid;
+  gap: 2px;
+  grid-template-rows: 1fr auto auto;
+  min-height: 50px;
+  min-width: 0;
+  padding: 5px 3px;
+  text-align: center;
+}
+
+.cubeta-card.lleno {
+  background: linear-gradient(180deg, #1fbd75, var(--green));
+}
+
+.cubeta-card.vacio {
+  background: linear-gradient(180deg, #ee4c45, var(--red));
+}
+
+.cubeta-card.pedido {
+  background: linear-gradient(180deg, #facc15, var(--yellow));
+  border-color: rgba(113, 63, 18, 0.38);
+  color: #713f12;
+}
+
+.cubeta-card.unassigned {
+  background: #e5e7eb;
+  border-color: #b8c0cc;
+  color: #344054;
+  cursor: default;
+}
+
+.cubeta-card:disabled {
+  cursor: not-allowed;
+}
+
+.cubeta-card.assigned:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.cubeta-card strong {
+  font-size: 13px;
+  line-height: 1.05;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.balda-meta {
-  display: flex;
+.cubeta-card small,
+.cubeta-card em {
   font-size: 9px;
+  font-style: normal;
   font-weight: 800;
-  gap: 6px;
-  justify-content: space-between;
-  line-height: 1;
+  line-height: 1.05;
   opacity: 0.86;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.balda-suffix {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.78);
+.sku-cell.items .cubeta-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1f2937;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 64px;
+}
+
+.sku-cell.items .cubeta-suffix {
+  background: #2f5e94;
   border-radius: 999px;
-  color: rgba(17, 24, 39, 0.78);
-  display: inline-flex;
-  font-size: 9px;
+  color: #fff;
+  font-size: 10px;
   font-weight: 900;
-  height: 16px;
-  justify-content: center;
   justify-self: center;
   min-width: 28px;
-  padding: 0 6px;
+  padding: 2px 7px;
 }
 
 .empty-row {
@@ -551,7 +579,7 @@ main {
 
   .app-header-actions {
     align-items: flex-start;
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 
   .shelf-row {
@@ -562,8 +590,12 @@ main {
     gap: 3px;
   }
 
-  .balda-card {
+  .sku-cell {
     min-height: 66px;
     padding: 6px 4px;
+  }
+
+  .cubeta-card {
+    min-height: 48px;
   }
 }

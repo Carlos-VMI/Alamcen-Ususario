@@ -65,12 +65,37 @@ function makeShelfId(moduleId, shelfNumber, position) {
   return `${moduleId}-E${shelfNumber}-C${position}`;
 }
 
+function makeCubetaId(moduleId, shelfNumber, position, suffix) {
+  return `${makeShelfId(moduleId, shelfNumber, position)}-${suffix}`;
+}
+
 function makeAssignmentKey(moduleId, shelfNumber, position) {
   return `${moduleId}:${shelfNumber}:${position}`;
 }
 
 function makeDisplayLocation(module, shelfNumber, position) {
   return `${module.nombre || `Modulo ${module.orden ?? ''}`.trim()} - Estante ${shelfNumber} - Balda ${position}`;
+}
+
+function buildArticleCubetas(article, suffixSource) {
+  const suffixes = normalizeSuffixes(suffixSource).length
+    ? normalizeSuffixes(suffixSource)
+    : [{ sufijo: article.sufijo ?? '01', capacidad: article.capacidad ?? 0 }];
+
+  return suffixes.map((suffix, index) => {
+    const normalizedSuffix = normalizeSuffix(suffix.sufijo, index);
+    return {
+      articulo_id: article.id,
+      codigo_articulo: article.codigo_articulo ?? null,
+      codigo_cliente: article.codigo_cliente ?? null,
+      sku_base: article.sku,
+      sufijo: normalizedSuffix,
+      sku: `${article.sku}-${normalizedSuffix}`,
+      descripcion: article.descripcion,
+      capacidad: toNumber(suffix.capacidad ?? suffix.cantidad ?? article.capacidad, 0),
+      updated_at: article.updated_at
+    };
+  });
 }
 
 function collectArticleAssignments(articles) {
@@ -90,10 +115,17 @@ function collectArticleAssignments(articles) {
         codigo_articulo: article.codigo_articulo ?? null,
         codigo_cliente: article.codigo_cliente ?? null,
         sku_base: article.sku,
-        sufijo: location.sufijo ? normalizeSuffix(location.sufijo) : null,
-        sku: `${article.sku}${location.sufijo ? `-${normalizeSuffix(location.sufijo)}` : ''}`,
+        sku: article.sku,
         descripcion: article.descripcion,
-        capacidad: toNumber(location.capacidad, 0),
+        cubetas: buildArticleCubetas(article, location.sufijos ?? article.sufijos).map((cubeta, index) => {
+          const suffix = location.sufijo && index === 0 ? normalizeSuffix(location.sufijo) : cubeta.sufijo;
+          return {
+            ...cubeta,
+            sufijo: suffix,
+            sku: `${article.sku}-${suffix}`,
+            capacidad: toNumber(location.capacidad ?? cubeta.capacidad, cubeta.capacidad)
+          };
+        }),
         updated_at: [article.updated_at, location.updated_at].filter(Boolean).sort().at(-1)
       });
     }
@@ -110,10 +142,9 @@ function collectArticleAssignments(articles) {
         codigo_articulo: article.codigo_articulo ?? null,
         codigo_cliente: article.codigo_cliente ?? null,
         sku_base: article.sku,
-        sufijo: suffix ? normalizeSuffix(suffix) : null,
-        sku: `${article.sku}${suffix ? `-${normalizeSuffix(suffix)}` : ''}`,
+        sku: article.sku,
         descripcion: article.descripcion,
-        capacidad: toNumber(article.capacidad ?? suffixes[0]?.capacidad, 0),
+        cubetas: buildArticleCubetas(article, suffixes.length ? suffixes : [{ sufijo: suffix, capacidad: article.capacidad }]),
         updated_at: article.updated_at
       });
     }
@@ -129,24 +160,18 @@ function flattenArticleSuffixes(articles) {
       if (bySku !== 0) return bySku;
       return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''));
     })
-    .flatMap((article) => {
+    .map((article) => {
       const suffixes = normalizeSuffixes(article.sufijos);
-      const normalizedSuffixes = suffixes.length ? suffixes : [{ sufijo: '01', capacidad: article.capacidad ?? 0 }];
-
-      return normalizedSuffixes.map((suffix, index) => {
-        const normalizedSuffix = normalizeSuffix(suffix.sufijo, index);
-        return {
-          articulo_id: article.id,
-          codigo_articulo: article.codigo_articulo ?? null,
-          codigo_cliente: article.codigo_cliente ?? null,
-          sku_base: article.sku,
-          sufijo: normalizedSuffix,
-          sku: `${article.sku}-${normalizedSuffix}`,
-          descripcion: article.descripcion,
-          capacidad: toNumber(suffix.capacidad ?? suffix.cantidad ?? article.capacidad, 0),
-          updated_at: article.updated_at
-        };
-      });
+      return {
+        articulo_id: article.id,
+        codigo_articulo: article.codigo_articulo ?? null,
+        codigo_cliente: article.codigo_cliente ?? null,
+        sku_base: article.sku,
+        sku: article.sku,
+        descripcion: article.descripcion,
+        cubetas: buildArticleCubetas(article, suffixes.length ? suffixes : [{ sufijo: '01', capacidad: article.capacidad ?? 0 }]),
+        updated_at: article.updated_at
+      };
     });
 }
 
@@ -173,9 +198,22 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
       const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position))
         ?? sequentialAssignments[sequentialIndex++]
         ?? null;
+      const shelfId = makeShelfId(shelf.modulo_id, shelf.numero, position);
+      const cubetas = (assignment?.cubetas ?? []).map((cubeta, cubetaIndex) => ({
+        ...cubeta,
+        id: makeCubetaId(shelf.modulo_id, shelf.numero, position, cubeta.sufijo ?? normalizeSuffix(null, cubetaIndex)),
+        almacen_id: almacenId,
+        modulo_id: shelf.modulo_id,
+        modulo: module.nombre || `Modulo ${module.orden ?? ''}`.trim(),
+        estante_id: shelf.id,
+        estante: shelf.numero,
+        posicion: position,
+        etiqueta_balda: `C${position}`,
+        ubicacion: makeDisplayLocation(module, shelf.numero, position)
+      }));
 
       return {
-        id: makeShelfId(shelf.modulo_id, shelf.numero, position),
+        id: shelfId,
         almacen_id: almacenId,
         modulo_id: shelf.modulo_id,
         modulo: module.nombre || `Modulo ${module.orden ?? ''}`.trim(),
@@ -187,10 +225,10 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         codigo_articulo: assignment?.codigo_articulo ?? null,
         codigo_cliente: assignment?.codigo_cliente ?? null,
         sku_base: assignment?.sku_base ?? null,
-        sufijo: assignment?.sufijo ?? null,
         sku: assignment?.sku ?? null,
         descripcion: assignment?.descripcion ?? null,
-        capacidad: assignment?.capacidad ?? 0,
+        capacidad: cubetas.reduce((sum, cubeta) => sum + toNumber(cubeta.capacidad, 0), 0),
+        cubetas,
         ubicacion: makeDisplayLocation(module, shelf.numero, position),
         updated_at: [module.updated_at, shelf.updated_at, assignment?.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
       };
@@ -234,7 +272,7 @@ export const syncService = {
       almacenId
     });
     await replaceShelfConfig(rows);
-    await this.downloadRemoteStates(rows.map((row) => row.id));
+    await this.downloadRemoteStates(rows.flatMap((row) => row.cubetas?.length ? row.cubetas.map((cubeta) => cubeta.id) : [row.id]));
     return rows;
   },
 
@@ -285,6 +323,7 @@ export const syncService = {
 
   async markEmptyShelvesAsOrdered(shelves, statesById) {
     const rows = shelves
+      .flatMap((shelf) => shelf.cubetas?.length ? shelf.cubetas : [shelf])
       .filter((shelf) => shelf.sku && statesById.get(shelf.id) === SHELF_STATES.EMPTY)
       .map((shelf) => ({
         id_balda: shelf.id,
