@@ -106,7 +106,6 @@ function AlmacenSelector({ onSelected }) {
     const { data: admins, error } = await supabase
       .from('almacen_operadores')
       .select('*')
-      .eq('almacen_id', selectedWarehouse.id)
       .eq('activo', true);
 
     if (error) {
@@ -119,7 +118,7 @@ function AlmacenSelector({ onSelected }) {
     ));
 
     if (!admin) {
-      setSaveError('PIN de administrador incorrecto para este almacen.');
+      setSaveError('PIN de administrador incorrecto.');
       return;
     }
 
