@@ -31,11 +31,10 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
     return (
       <article className={`sku-cell item-card ${hasArticle ? 'assigned' : 'unassigned'}`}>
         <div className="item-card-head">
-          <strong>{locationLabel}</strong>
+          <strong>{hasArticle ? itemSku : locationLabel}</strong>
           <span className={`item-status-dot ${hasArticle ? 'assigned' : 'unassigned'}`} aria-label={hasArticle ? 'Con material' : 'Libre'} />
         </div>
         <div className="item-card-body">
-          <strong>{hasArticle ? itemSku : 'Libre'}</strong>
           <small>{balda.descripcion || 'Sin articulo configurado'}</small>
           <em>Cap. {balda.capacidad || 0}</em>
         </div>
