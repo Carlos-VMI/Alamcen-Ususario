@@ -6,6 +6,7 @@ import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
 import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
+import { buildPedidoRows, sendPedidoEmail } from './lib/orderService';
 import { syncService } from './lib/syncService';
 import { supabase } from './lib/supabaseClient';
 import './styles/app.css';
@@ -381,6 +382,8 @@ function App() {
   const [pendingAdminOperator, setPendingAdminOperator] = useState(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [viewMode, setViewMode] = useState('estado');
+  const [pedidoSending, setPedidoSending] = useState(false);
+  const [pedidoError, setPedidoError] = useState('');
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const sync = useSyncManager(almacenId);
@@ -417,7 +420,19 @@ function App() {
   };
 
   const handlePedido = async () => {
-    await syncService.markEmptyShelvesAsOrdered(config, estadosById);
+    if (viewMode !== 'estado' || pedidoSending) return;
+
+    setPedidoError('');
+    setPedidoSending(true);
+    try {
+      const rows = buildPedidoRows(config, estadosById);
+      await sendPedidoEmail({ rows, warehouse: warehouseMeta, operator });
+      await syncService.markEmptyShelvesAsOrdered(config, estadosById);
+    } catch (error) {
+      setPedidoError(error?.message || 'Error enviando pedido');
+    } finally {
+      setPedidoSending(false);
+    }
   };
 
   if (!operator && !pendingAdminOperator) {
@@ -460,8 +475,14 @@ function App() {
               Items
             </button>
           </div>
-          <button className="pedido-button" type="button" onClick={handlePedido} disabled={pendingOrderCount === 0}>
-            Pedido
+          <button
+            className="pedido-button"
+            type="button"
+            onClick={handlePedido}
+            disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending}
+            title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
+          >
+            {pedidoSending ? 'Enviando' : 'Pedido'}
             {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
           </button>
           <StatusIndicator {...sync} />
@@ -472,6 +493,7 @@ function App() {
       </header>
 
       <main>
+        {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
         <WarehouseView config={config} estados={estados} operatorRole={operator.rol} viewMode={viewMode} />
       </main>
 

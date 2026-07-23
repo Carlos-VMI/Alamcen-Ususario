@@ -64,13 +64,17 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
               }}
             >
               {sortedShelves.map((balda) => (
-                <BaldaCard
-                  key={balda.id}
-                  balda={balda}
-                  estadosById={estadosById}
-                  operatorRole={operatorRole}
-                  viewMode={viewMode}
-                />
+                <div className="shelf-slot" key={balda.id}>
+                  <BaldaCard
+                    balda={balda}
+                    estadosById={estadosById}
+                    operatorRole={operatorRole}
+                    viewMode={viewMode}
+                  />
+                  {viewMode === 'estado' ? (
+                    <span className="column-label">{balda.etiqueta_balda ?? `C${balda.posicion}`}</span>
+                  ) : null}
+                </div>
               ))}
               {sortedShelves.length === 0 && <span className="empty-row">Sin baldas configuradas</span>}
             </div>

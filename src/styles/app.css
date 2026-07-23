@@ -326,7 +326,7 @@ main {
 
 .split-layout {
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .active-module-area {
@@ -335,7 +335,8 @@ main {
 
 .modules-overview {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   max-height: calc(100vh - 104px);
   overflow: auto;
   position: sticky;
@@ -353,6 +354,17 @@ main {
   padding: 9px;
   text-align: left;
   width: 100%;
+}
+
+.top-error {
+  background: var(--red-soft);
+  border: 1px solid rgba(180, 35, 24, 0.22);
+  border-radius: 8px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  padding: 10px 12px;
 }
 
 .overview-module.active {
@@ -488,11 +500,15 @@ main {
 }
 
 .shelf-cells {
-  border-bottom: 10px solid #2f5e94;
   display: grid;
   gap: 4px;
   min-width: 0;
-  padding-bottom: 4px;
+}
+
+.shelf-slot {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  min-width: 0;
 }
 
 .sku-cell {
@@ -511,7 +527,7 @@ main {
 }
 
 .sku-cell.estado {
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
 }
 
 .sku-cell.assigned {
@@ -641,14 +657,15 @@ main {
 
 .column-label {
   align-items: center;
-  color: #475467;
+  background: #2f5e94;
+  color: #fff;
   cursor: default;
   display: flex;
   font-size: 10px;
   font-weight: 900;
   justify-content: center;
   line-height: 1;
-  min-height: 12px;
+  min-height: 16px;
   user-select: none;
 }
 

@@ -12,6 +12,8 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
   const normalizedRole = String(operatorRole || 'operario').toLowerCase();
   const canReplenish = normalizedRole === 'repositor' || normalizedRole === 'administrador' || normalizedRole === 'admin';
   const locationLabel = balda.codigo_ubicacion || `M?E${balda.estante}C${balda.posicion}`;
+  const itemSku = balda.sku || '';
+  const showBodySku = itemSku && itemSku !== locationLabel;
 
   const handleCubetaClick = async (cubeta) => {
     if (!cubeta.sku) return;
@@ -34,7 +36,7 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
           <span className={`item-status-dot ${hasArticle ? 'assigned' : 'unassigned'}`} aria-label={hasArticle ? 'Articulo asignado' : 'Libre'} />
         </div>
         <div className="item-card-body">
-          <strong>{balda.sku || 'Libre'}</strong>
+          <strong>{showBodySku ? itemSku : hasArticle ? 'Articulo asignado' : 'Libre'}</strong>
           <small>{balda.descripcion || 'Sin articulo configurado'}</small>
           <em>Cap. {balda.capacidad || 0}</em>
         </div>
@@ -69,7 +71,6 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
           );
         })}
       </div>
-      <span className="column-label">{balda.etiqueta_balda ?? `C${balda.posicion}`}</span>
     </article>
   );
 }
