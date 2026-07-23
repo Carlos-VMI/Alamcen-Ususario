@@ -18,6 +18,11 @@ function stateClassForShelf(shelf, estadosById) {
   return 'lleno';
 }
 
+function stateClassForCubeta(cubeta, estadosById) {
+  if (!cubeta.sku) return 'unassigned';
+  return estadosById.get(cubeta.id) || 'lleno';
+}
+
 function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode, compact = false }) {
   const rows = groupBy(shelves, (row) => row.estante);
 
@@ -39,12 +44,27 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                     : '1fr'
                 }}
               >
-                {sortedShelves.map((shelf) => (
-                  <span
-                    className={`overview-cell ${stateClassForShelf(shelf, estadosById)}`}
-                    key={shelf.id}
-                  />
-                ))}
+                {sortedShelves.map((shelf) => {
+                  const cubetas = shelf.cubetas?.length ? shelf.cubetas : [shelf];
+                  return (
+                    <span
+                      className={`overview-cell ${stateClassForShelf(shelf, estadosById)}`}
+                      key={shelf.id}
+                    >
+                      <span
+                        className="overview-cubeta-grid"
+                        style={{ gridTemplateColumns: `repeat(${Math.max(1, cubetas.length)}, minmax(0, 1fr))` }}
+                      >
+                        {cubetas.map((cubeta, cubetaIndex) => (
+                          <span
+                            className={`overview-cubeta ${stateClassForCubeta(cubeta, estadosById)}`}
+                            key={cubeta.id || `${shelf.id}-${cubetaIndex}`}
+                          />
+                        ))}
+                      </span>
+                    </span>
+                  );
+                })}
                 {sortedShelves.length === 0 ? <span className="overview-cell unassigned" /> : null}
               </div>
             </div>
@@ -65,28 +85,42 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
         return (
           <div className="shelf-row" key={`${moduleName}-${rowNumber}`}>
             <span className="row-label">{rowNumber}</span>
-            <div
-              className="shelf-cells"
-              style={{
-                gridTemplateColumns: sortedShelves.length
-                  ? `repeat(${sortedShelves.length}, minmax(0, 1fr))`
-                  : '1fr'
-              }}
-            >
-              {sortedShelves.map((balda) => (
-                <div className="shelf-slot" key={balda.id}>
-                  <BaldaCard
-                    balda={balda}
-                    estadosById={estadosById}
-                    operatorRole={operatorRole}
-                    viewMode={viewMode}
-                  />
-                  {viewMode === 'estado' ? (
-                    <span className="column-label">{balda.etiqueta_balda ?? `C${balda.posicion}`}</span>
-                  ) : null}
-                </div>
-              ))}
-              {sortedShelves.length === 0 && <span className="empty-row">Sin baldas configuradas</span>}
+            <div className="shelf-cells">
+              {sortedShelves.length > 0 ? (
+                <>
+                  <div
+                    className="shelf-card-row"
+                    style={{
+                      gridTemplateColumns: `repeat(${sortedShelves.length}, minmax(0, 1fr))`
+                    }}
+                  >
+                    {sortedShelves.map((balda) => (
+                      <div className="shelf-slot" key={balda.id}>
+                        <BaldaCard
+                          balda={balda}
+                          estadosById={estadosById}
+                          operatorRole={operatorRole}
+                          viewMode={viewMode}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    className="shelf-column-bar"
+                    style={{
+                      gridTemplateColumns: `repeat(${sortedShelves.length}, minmax(0, 1fr))`
+                    }}
+                  >
+                    {sortedShelves.map((balda) => (
+                      <span className="column-label" key={`${balda.id}-label`}>
+                        {balda.etiqueta_balda ?? `C${balda.posicion}`}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <span className="empty-row">Sin baldas configuradas</span>
+              )}
             </div>
           </div>
         );

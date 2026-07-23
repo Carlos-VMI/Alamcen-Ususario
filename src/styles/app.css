@@ -406,22 +406,41 @@ main {
 .overview-cell {
   background: #e5e7eb;
   border-radius: 2px;
+  display: block;
+  min-height: 12px;
+  overflow: hidden;
+}
+
+.overview-cubeta-grid {
+  display: grid;
+  gap: 1px;
+  height: 100%;
+  min-height: 12px;
+  width: 100%;
+}
+
+.overview-cubeta {
+  display: block;
   min-height: 12px;
 }
 
-.overview-cell.lleno {
+.overview-cell.lleno,
+.overview-cubeta.lleno {
   background: var(--green);
 }
 
-.overview-cell.vacio {
+.overview-cell.vacio,
+.overview-cubeta.vacio {
   background: var(--red);
 }
 
-.overview-cell.pedido {
+.overview-cell.pedido,
+.overview-cubeta.pedido {
   background: #facc15;
 }
 
-.overview-cell.unassigned {
+.overview-cell.unassigned,
+.overview-cubeta.unassigned {
   background: #d7dde5;
 }
 
@@ -514,13 +533,19 @@ main {
 
 .shelf-cells {
   display: grid;
+  gap: 0;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  min-width: 0;
+}
+
+.shelf-card-row {
+  display: grid;
   gap: 4px;
   min-width: 0;
 }
 
 .shelf-slot {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) 16px;
+  display: block;
   min-width: 0;
 }
 
@@ -672,7 +697,7 @@ main {
 
 .column-label {
   align-items: center;
-  background: #2f5e94;
+  background: transparent;
   color: #fff;
   cursor: default;
   display: flex;
@@ -685,6 +710,16 @@ main {
   text-shadow: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.shelf-column-bar {
+  background: #2f5e94;
+  border: 1px solid #244b78;
+  border-radius: 0 0 4px 4px;
+  display: grid;
+  margin-top: 4px;
+  min-height: 16px;
+  overflow: hidden;
 }
 
 .cubeta-card.lleno {
@@ -744,6 +779,7 @@ main {
   color: #667085;
   display: flex;
   font-size: 12px;
+  grid-row: 1 / -1;
   justify-content: center;
   min-height: 58px;
 }
