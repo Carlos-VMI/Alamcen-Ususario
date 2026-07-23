@@ -76,6 +76,14 @@ main {
   gap: 10px;
 }
 
+.logout-button {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+  min-height: 36px;
+  padding: 0 12px;
+}
+
 .setup-screen {
   align-items: center;
   display: flex;
@@ -181,6 +189,23 @@ main {
   min-height: 44px;
 }
 
+.secondary-button,
+.danger-button {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.secondary-button {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.danger-button {
+  background: var(--red);
+  color: #fff;
+}
+
 .setup-message,
 .setup-error {
   border-radius: 7px;
@@ -223,6 +248,46 @@ main {
 .status-indicator.offline {
   background: var(--red-soft);
   color: var(--red);
+}
+
+.modal-backdrop {
+  align-items: center;
+  background: rgba(17, 24, 39, 0.48);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 20;
+}
+
+.logout-dialog {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 22px 60px rgba(17, 24, 39, 0.22);
+  display: grid;
+  gap: 13px;
+  max-width: 380px;
+  padding: 22px;
+  width: 100%;
+}
+
+.logout-dialog h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.logout-dialog p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .warehouse-screen {

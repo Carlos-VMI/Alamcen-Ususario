@@ -5,6 +5,7 @@ import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
 import { useSyncManager } from './hooks/useSyncManager';
+import { db } from './lib/db';
 import { supabase } from './lib/supabaseClient';
 import './styles/app.css';
 
@@ -29,24 +30,24 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+function readJsonStorage(key) {
+  try {
+    return JSON.parse(window.localStorage.getItem(key) || 'null');
+  } catch {
+    return null;
+  }
+}
+
 function getStoredAlmacenId() {
   return window.localStorage.getItem(ACTIVE_WAREHOUSE_KEY);
 }
 
 function getStoredWarehouseMeta() {
-  try {
-    return JSON.parse(window.localStorage.getItem(ACTIVE_WAREHOUSE_META_KEY) || 'null');
-  } catch {
-    return null;
-  }
+  return readJsonStorage(ACTIVE_WAREHOUSE_META_KEY);
 }
 
 function getStoredOperator() {
-  try {
-    return JSON.parse(window.localStorage.getItem(ACTIVE_OPERATOR_KEY) || 'null');
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 function normalizeRole(role) {
@@ -56,19 +57,71 @@ function normalizeRole(role) {
   return 'operario';
 }
 
+function roleLabel(role) {
+  const normalized = normalizeRole(role);
+  if (normalized === 'administrador') return 'Administrador';
+  if (normalized === 'repositor') return 'Repositor';
+  return 'Operario';
+}
+
 function formatWarehouseLabel(almacen) {
   const nombre = almacen.nombre || 'Almacen sin nombre';
   const ubicacion = almacen.ubicacion || almacen.location || '';
   return ubicacion ? `${nombre} (${ubicacion})` : nombre;
 }
 
-function AlmacenSelector({ onSelected }) {
-  const [selectedId, setSelectedId] = useState('');
-  const [adminPin, setAdminPin] = useState('');
-  const [saveError, setSaveError] = useState('');
+function makeWarehouseMeta(warehouse) {
+  return {
+    id: warehouse.id,
+    nombre: warehouse.nombre || 'Almacen',
+    ubicacion: warehouse.ubicacion || warehouse.location || ''
+  };
+}
 
-  const almacenesQuery = useQuery({
+async function clearLocalWarehouseData() {
+  await db.transaction('rw', db.estanterias_config, db.estados_baldas, db.cola_sincronizacion, async () => {
+    await db.estanterias_config.clear();
+    await db.estados_baldas.clear();
+    await db.cola_sincronizacion.clear();
+  });
+}
+
+async function persistSession({ operator, warehouse }) {
+  const currentWarehouseId = getStoredAlmacenId();
+  const meta = makeWarehouseMeta(warehouse);
+
+  if (currentWarehouseId && currentWarehouseId !== meta.id) {
+    await clearLocalWarehouseData();
+  }
+
+  window.localStorage.setItem(ACTIVE_WAREHOUSE_KEY, meta.id);
+  window.localStorage.setItem(ACTIVE_WAREHOUSE_META_KEY, JSON.stringify(meta));
+
+  return meta;
+}
+
+function useActiveOperatorsQuery() {
+  return useQuery({
+    queryKey: ['active-local-operators'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('almacen_operadores')
+        .select('*')
+        .eq('activo', true)
+        .order('nombre', { ascending: true });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30000,
+    refetchOnWindowFocus: true
+  });
+}
+
+function useWarehousesQuery(enabled = true) {
+  return useQuery({
     queryKey: ['almacen_bases'],
+    enabled,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('almacen_bases')
@@ -83,150 +136,19 @@ function AlmacenSelector({ onSelected }) {
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });
-
-  const almacenes = almacenesQuery.data ?? [];
-  const selectedWarehouse = useMemo(
-    () => almacenes.find((almacen) => almacen.id === selectedId),
-    [almacenes, selectedId]
-  );
-
-  const handleConfirm = async () => {
-    setSaveError('');
-
-    if (!selectedWarehouse) {
-      setSaveError('Selecciona un almacen para continuar.');
-      return;
-    }
-
-    if (!adminPin.trim()) {
-      setSaveError('Ingresa el PIN de administrador.');
-      return;
-    }
-
-    const { data: admins, error } = await supabase
-      .from('almacen_operadores')
-      .select('*')
-      .eq('activo', true);
-
-    if (error) {
-      setSaveError(`No se pudo validar el administrador: ${error.message}`);
-      return;
-    }
-
-    const admin = (admins ?? []).find((operator) => (
-      normalizeRole(operator.rol) === 'administrador' && String(operator.pin ?? '') === adminPin.trim()
-    ));
-
-    if (!admin) {
-      setSaveError('PIN de administrador incorrecto.');
-      return;
-    }
-
-    const meta = {
-      id: selectedWarehouse.id,
-      nombre: selectedWarehouse.nombre || 'Almacen',
-      ubicacion: selectedWarehouse.ubicacion || selectedWarehouse.location || ''
-    };
-
-    window.localStorage.setItem(ACTIVE_WAREHOUSE_KEY, selectedWarehouse.id);
-    window.localStorage.setItem(ACTIVE_WAREHOUSE_META_KEY, JSON.stringify(meta));
-    window.localStorage.removeItem(ACTIVE_OPERATOR_KEY);
-    onSelected(meta);
-  };
-
-  return (
-    <main className="setup-screen">
-      <section className="setup-card" aria-labelledby="setup-title">
-        <div className="setup-logo" aria-hidden="true">
-          <span />
-        </div>
-        <h1 id="setup-title">Seleccionar almacen</h1>
-        <p>Elige el almacen que quedara asociado a esta tablet o PC.</p>
-
-        {almacenesQuery.isLoading ? (
-          <div className="setup-message">Cargando almacenes...</div>
-        ) : null}
-
-        {almacenesQuery.isError ? (
-          <div className="setup-error">
-            No se pudieron cargar los almacenes. Revisa la conexion y la tabla almacen_bases.
-          </div>
-        ) : null}
-
-        {!almacenesQuery.isLoading && !almacenesQuery.isError && almacenes.length === 0 ? (
-          <div className="setup-message">No hay almacenes creados en Supabase.</div>
-        ) : null}
-
-        {almacenes.length > 0 ? (
-          <>
-            <label className="setup-label" htmlFor="almacen-selector">
-              Almacen
-            </label>
-            <select
-              id="almacen-selector"
-              className="setup-select"
-              value={selectedId}
-              onChange={(event) => setSelectedId(event.target.value)}
-            >
-              <option value="">Seleccionar...</option>
-              {almacenes.map((almacen) => (
-                <option key={almacen.id} value={almacen.id}>
-                  {formatWarehouseLabel(almacen)}
-                </option>
-              ))}
-            </select>
-            <label className="setup-label" htmlFor="admin-pin">
-              PIN administrador
-            </label>
-            <input
-              id="admin-pin"
-              className="setup-input"
-              inputMode="numeric"
-              type="password"
-              value={adminPin}
-              onChange={(event) => setAdminPin(event.target.value)}
-              placeholder="PIN"
-            />
-            <button className="setup-button" type="button" onClick={handleConfirm}>
-              Confirmar
-            </button>
-          </>
-        ) : null}
-
-        {saveError ? <div className="setup-error">{saveError}</div> : null}
-      </section>
-    </main>
-  );
 }
 
-function OperatorLogin({ almacenId, warehouseMeta, onLoggedIn }) {
+function LoginScreen({ onLoggedIn }) {
   const [selectedId, setSelectedId] = useState('');
   const [pin, setPin] = useState('');
   const [loginError, setLoginError] = useState('');
-
-  const operatorsQuery = useQuery({
-    queryKey: ['almacen-operadores', almacenId],
-    enabled: Boolean(almacenId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('almacen_operadores')
-        .select('*')
-        .eq('almacen_id', almacenId)
-        .eq('activo', true)
-        .order('nombre', { ascending: true });
-
-      if (error) throw error;
-      return data ?? [];
-    },
-    staleTime: 30000,
-    refetchOnWindowFocus: true
-  });
-
+  const operatorsQuery = useActiveOperatorsQuery();
   const operators = operatorsQuery.data ?? [];
   const selectedOperator = operators.find((operator) => operator.id === selectedId);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoginError('');
+
     if (!selectedOperator) {
       setLoginError('Selecciona un usuario.');
       return;
@@ -239,29 +161,49 @@ function OperatorLogin({ almacenId, warehouseMeta, onLoggedIn }) {
 
     const operator = {
       id: selectedOperator.id,
+      almacen_id: selectedOperator.almacen_id,
       nombre: selectedOperator.nombre,
       rol: normalizeRole(selectedOperator.rol)
     };
 
-    window.localStorage.setItem(ACTIVE_OPERATOR_KEY, JSON.stringify(operator));
-    onLoggedIn(operator);
+    if (operator.rol === 'administrador') {
+      onLoggedIn({ operator, needsWarehouseSelection: true });
+      return;
+    }
+
+    if (!operator.almacen_id) {
+      setLoginError('Este usuario no tiene almacen asignado.');
+      return;
+    }
+
+    const { data: warehouse, error } = await supabase
+      .from('almacen_bases')
+      .select('*')
+      .eq('id', operator.almacen_id)
+      .maybeSingle();
+
+    if (error || !warehouse) {
+      setLoginError(error?.message || 'No se pudo cargar el almacen asignado.');
+      return;
+    }
+
+    const warehouseMeta = await persistSession({ operator, warehouse });
+    onLoggedIn({ operator, warehouseMeta, needsWarehouseSelection: false });
   };
 
   return (
     <main className="setup-screen">
-      <section className="setup-card" aria-labelledby="operator-title">
+      <section className="setup-card" aria-labelledby="login-title">
         <div className="setup-logo" aria-hidden="true">
           <span />
         </div>
-        <h1 id="operator-title">{warehouseMeta?.nombre || 'Almacen'}</h1>
-        {warehouseMeta?.ubicacion ? <p>{warehouseMeta.ubicacion}</p> : null}
+        <h1 id="login-title">Bienvenido</h1>
+        <p>Identificate con tu usuario local y PIN.</p>
 
         {operatorsQuery.isLoading ? <div className="setup-message">Cargando usuarios...</div> : null}
-        {operatorsQuery.isError ? (
-          <div className="setup-error">No se pudieron cargar los usuarios locales.</div>
-        ) : null}
-        {!operatorsQuery.isLoading && !operators.length ? (
-          <div className="setup-message">No hay usuarios activos para este almacen.</div>
+        {operatorsQuery.isError ? <div className="setup-error">No se pudieron cargar los usuarios locales.</div> : null}
+        {!operatorsQuery.isLoading && !operatorsQuery.isError && operators.length === 0 ? (
+          <div className="setup-message">No hay usuarios activos configurados.</div>
         ) : null}
 
         {operators.length ? (
@@ -278,7 +220,7 @@ function OperatorLogin({ almacenId, warehouseMeta, onLoggedIn }) {
               <option value="">Seleccionar...</option>
               {operators.map((operator) => (
                 <option key={operator.id} value={operator.id}>
-                  {operator.nombre} - {normalizeRole(operator.rol)}
+                  {operator.nombre} - {roleLabel(operator.rol)}
                 </option>
               ))}
             </select>
@@ -306,30 +248,174 @@ function OperatorLogin({ almacenId, warehouseMeta, onLoggedIn }) {
   );
 }
 
+function AdminWarehouseSelector({ operator, onSelected }) {
+  const [selectedId, setSelectedId] = useState('');
+  const [selectError, setSelectError] = useState('');
+  const warehousesQuery = useWarehousesQuery(true);
+  const warehouses = warehousesQuery.data ?? [];
+  const selectedWarehouse = useMemo(
+    () => warehouses.find((warehouse) => warehouse.id === selectedId),
+    [warehouses, selectedId]
+  );
+
+  const handleConfirm = async () => {
+    setSelectError('');
+
+    if (!selectedWarehouse) {
+      setSelectError('Selecciona un almacen para continuar.');
+      return;
+    }
+
+    const warehouseMeta = await persistSession({ operator, warehouse: selectedWarehouse });
+    onSelected({ operator, warehouseMeta });
+  };
+
+  return (
+    <main className="setup-screen">
+      <section className="setup-card" aria-labelledby="warehouse-title">
+        <div className="setup-logo" aria-hidden="true">
+          <span />
+        </div>
+        <h1 id="warehouse-title">Seleccionar almacen</h1>
+        <p>{operator.nombre} - Administrador</p>
+
+        {warehousesQuery.isLoading ? <div className="setup-message">Cargando almacenes...</div> : null}
+        {warehousesQuery.isError ? (
+          <div className="setup-error">No se pudieron cargar los almacenes desde almacen_bases.</div>
+        ) : null}
+        {!warehousesQuery.isLoading && !warehousesQuery.isError && warehouses.length === 0 ? (
+          <div className="setup-message">No hay almacenes creados en Supabase.</div>
+        ) : null}
+
+        {warehouses.length ? (
+          <>
+            <label className="setup-label" htmlFor="warehouse-selector">
+              Almacen
+            </label>
+            <select
+              id="warehouse-selector"
+              className="setup-select"
+              value={selectedId}
+              onChange={(event) => setSelectedId(event.target.value)}
+            >
+              <option value="">Seleccionar...</option>
+              {warehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {formatWarehouseLabel(warehouse)}
+                </option>
+              ))}
+            </select>
+            <button className="setup-button" type="button" onClick={handleConfirm}>
+              Entrar
+            </button>
+          </>
+        ) : null}
+
+        {selectError ? <div className="setup-error">{selectError}</div> : null}
+      </section>
+    </main>
+  );
+}
+
+function ProtectedLogout({ onClose, onLogout }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const adminsQuery = useActiveOperatorsQuery();
+  const admins = (adminsQuery.data ?? []).filter((operator) => normalizeRole(operator.rol) === 'administrador');
+
+  const handleConfirm = async () => {
+    setError('');
+
+    const validAdmin = admins.find((operator) => String(operator.pin ?? '') === pin.trim());
+    if (!validAdmin) {
+      setError('PIN de administrador incorrecto.');
+      return;
+    }
+
+    window.localStorage.removeItem(ACTIVE_OPERATOR_KEY);
+    await onLogout();
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="logout-dialog" role="dialog" aria-modal="true" aria-labelledby="logout-title">
+        <h2 id="logout-title">Cerrar sesion</h2>
+        <p>Ingresa un PIN de administrador para salir de esta vista.</p>
+
+        {adminsQuery.isLoading ? <div className="setup-message">Validando administradores...</div> : null}
+        {adminsQuery.isError ? <div className="setup-error">No se pudieron cargar administradores.</div> : null}
+
+        <label className="setup-label" htmlFor="logout-pin">
+          PIN administrador
+        </label>
+        <input
+          id="logout-pin"
+          className="setup-input"
+          inputMode="numeric"
+          type="password"
+          value={pin}
+          onChange={(event) => setPin(event.target.value)}
+          placeholder="PIN"
+        />
+
+        {error ? <div className="setup-error">{error}</div> : null}
+
+        <div className="dialog-actions">
+          <button className="secondary-button" type="button" onClick={onClose}>
+            Cancelar
+          </button>
+          <button className="danger-button" type="button" onClick={handleConfirm}>
+            Salir
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function App() {
   const [almacenId, setAlmacenId] = useState(() => getStoredAlmacenId());
   const [warehouseMeta, setWarehouseMeta] = useState(() => getStoredWarehouseMeta());
   const [operator, setOperator] = useState(() => getStoredOperator());
+  const [pendingAdminOperator, setPendingAdminOperator] = useState(null);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const sync = useSyncManager(almacenId);
 
-  const handleSelected = (nextWarehouseMeta) => {
+  const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
+    if (needsWarehouseSelection) {
+      setPendingAdminOperator(nextOperator);
+      return;
+    }
+
+    setOperator(nextOperator);
     setWarehouseMeta(nextWarehouseMeta);
     setAlmacenId(nextWarehouseMeta.id);
-    window.location.reload();
   };
 
-  if (!almacenId) {
-    return <AlmacenSelector onSelected={handleSelected} />;
+  const handleAdminWarehouseSelected = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta }) => {
+    setPendingAdminOperator(null);
+    setOperator(nextOperator);
+    setWarehouseMeta(nextWarehouseMeta);
+    setAlmacenId(nextWarehouseMeta.id);
+  };
+
+  const handleLogout = async () => {
+    setLogoutOpen(false);
+    setOperator(null);
+    setPendingAdminOperator(null);
+  };
+
+  if (!operator && !pendingAdminOperator) {
+    return <LoginScreen onLoggedIn={handleLoggedIn} />;
   }
 
-  if (!operator) {
+  if (pendingAdminOperator && !operator) {
     return (
-      <OperatorLogin
-        almacenId={almacenId}
-        warehouseMeta={warehouseMeta}
-        onLoggedIn={setOperator}
+      <AdminWarehouseSelector
+        operator={pendingAdminOperator}
+        onSelected={handleAdminWarehouseSelected}
       />
     );
   }
@@ -341,17 +427,27 @@ function App() {
           <h1>{warehouseMeta?.nombre || 'Almacen Operario'}</h1>
           <p>
             {warehouseMeta?.ubicacion ? `${warehouseMeta.ubicacion} - ` : ''}
-            {operator.nombre} - {operator.rol}
+            {operator.nombre} - {roleLabel(operator.rol)}
           </p>
         </div>
         <div className="app-header-actions">
           <StatusIndicator {...sync} />
+          <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
+            Salir
+          </button>
         </div>
       </header>
 
       <main>
         <WarehouseView config={config} estados={estados} operatorRole={operator.rol} warehouseMeta={warehouseMeta} />
       </main>
+
+      {logoutOpen ? (
+        <ProtectedLogout
+          onClose={() => setLogoutOpen(false)}
+          onLogout={handleLogout}
+        />
+      ) : null}
     </div>
   );
 }
