@@ -263,6 +263,7 @@ main {
 
 .status-indicator {
   align-items: center;
+  border: 0;
   border-radius: 999px;
   display: inline-flex;
   font-size: 13px;
@@ -271,6 +272,10 @@ main {
   min-height: 36px;
   padding: 0 12px;
   white-space: nowrap;
+}
+
+.status-indicator:disabled {
+  cursor: default;
 }
 
 .status-indicator.synced {

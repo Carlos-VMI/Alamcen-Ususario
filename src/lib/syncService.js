@@ -12,6 +12,7 @@ import { supabase } from './supabaseClient';
 
 export const SYNC_INTERVAL_MS = 15000;
 export const SYNC_BATCH_SIZE = 50;
+export const SYNC_TIMEOUT_MS = 18000;
 export const SHELF_STATES = {
   FULL: 'lleno',
   EMPTY: 'vacio',
@@ -24,6 +25,19 @@ function nowIso() {
 
 function errorMessage(error) {
   return error?.message ?? String(error);
+}
+
+function withTimeout(promise, label, timeoutMs = SYNC_TIMEOUT_MS) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(`${label} excedio ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    window.clearTimeout(timeoutId);
+  });
 }
 
 function configSyncKey(almacenId) {
@@ -269,6 +283,30 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
 }
 
 export const syncService = {
+  async clearConfigCache(almacenId) {
+    await db.transaction(
+      'rw',
+      db.estanterias_config,
+      db.almacen_modulos,
+      db.almacen_estantes,
+      db.almacen_articulos,
+      db.sync_metadata,
+      async () => {
+        await db.estanterias_config.clear();
+        await db.almacen_modulos.clear();
+        await db.almacen_estantes.clear();
+        await db.almacen_articulos.clear();
+        await db.sync_metadata.delete(configSyncKey(almacenId));
+        await db.sync_metadata.delete(statesSyncKey(almacenId));
+      }
+    );
+  },
+
+  async forceRefreshRemoteConfig(almacenId) {
+    await this.clearConfigCache(almacenId);
+    return this.downloadRemoteConfig(almacenId);
+  },
+
   async downloadRemoteConfig(almacenId) {
     const lastSyncAt = await getSyncMetadata(configSyncKey(almacenId));
     const syncStartedAt = nowIso();
@@ -281,7 +319,7 @@ export const syncService = {
 
     if (lastSyncAt) modulesQuery = modulesQuery.gt('updated_at', lastSyncAt);
 
-    const { data: modules, error: modulesError } = await modulesQuery;
+    const { data: modules, error: modulesError } = await withTimeout(modulesQuery, 'Descarga de modulos');
     if (modulesError) throw modulesError;
 
     const localBeforeMerge = await readRawConfig(almacenId);
@@ -299,7 +337,7 @@ export const syncService = {
         .order('numero', { ascending: true });
 
       if (lastSyncAt) shelvesQuery = shelvesQuery.gt('updated_at', lastSyncAt);
-      shelvesResult = await shelvesQuery;
+      shelvesResult = await withTimeout(shelvesQuery, 'Descarga de estantes');
     }
 
     const { data: shelves, error: shelvesError } = shelvesResult;
@@ -313,7 +351,7 @@ export const syncService = {
 
     if (lastSyncAt) articlesQuery = articlesQuery.gt('updated_at', lastSyncAt);
 
-    const { data: articles, error: articlesError } = await articlesQuery;
+    const { data: articles, error: articlesError } = await withTimeout(articlesQuery, 'Descarga de articulos');
     if (articlesError) throw articlesError;
 
     if (lastSyncAt) {
@@ -359,7 +397,7 @@ export const syncService = {
 
     if (lastSyncAt) query = query.gt('updated_at', lastSyncAt);
 
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(query, 'Descarga de estados');
 
     if (error) throw error;
 
@@ -515,9 +553,12 @@ export const syncService = {
           updated_at: item.payload.updated_at
         }));
 
-        const { error } = await supabase
-          .from('estados_baldas')
-          .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false });
+        const { error } = await withTimeout(
+          supabase
+            .from('estados_baldas')
+            .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false }),
+          'Envio batch de estados'
+        );
 
         if (error) throw error;
 
@@ -569,9 +610,12 @@ export const syncService = {
         estado: item.payload.estado,
         updated_at: item.payload.updated_at
       };
-      const { error } = await supabase
-        .from('estados_baldas')
-        .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false });
+      const { error } = await withTimeout(
+        supabase
+          .from('estados_baldas')
+          .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false }),
+        'Envio de estado'
+      );
 
       if (error) throw error;
 
@@ -582,9 +626,12 @@ export const syncService = {
     }
 
     if (item.tipo === 'reposicion.requested') {
-      const { error } = await supabase.functions.invoke('solicitar-reposicion', {
-        body: item.payload
-      });
+      const { error } = await withTimeout(
+        supabase.functions.invoke('solicitar-reposicion', {
+          body: item.payload
+        }),
+        'Solicitud de reposicion'
+      );
 
       if (error) throw error;
       return;

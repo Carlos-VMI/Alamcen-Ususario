@@ -499,7 +499,7 @@ function App() {
             {pedidoSending ? 'Enviando' : 'Pedido'}
             {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
           </button>
-          <StatusIndicator {...sync} />
+          <StatusIndicator {...sync} onSyncClick={sync.forceSync} />
           <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
             Salir
           </button>

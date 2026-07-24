@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { SYNC_INTERVAL_MS, syncService } from '../lib/syncService';
@@ -8,6 +8,8 @@ import { useOnlineStatus } from './useOnlineStatus';
 export function useSyncManager(almacenId) {
   const online = useOnlineStatus();
   const queryClient = useQueryClient();
+  const [manualSyncing, setManualSyncing] = useState(false);
+  const [manualSyncError, setManualSyncError] = useState(null);
   const queue = useLiveQuery(() => db.cola_sincronizacion.orderBy('created_at').toArray(), [], []);
 
   const pendingCount = queue.length;
@@ -36,6 +38,34 @@ export function useSyncManager(almacenId) {
     }
   }, [online, pendingCount, syncMutation]);
 
+  const forceSync = useCallback(async () => {
+    if (!online || !almacenId || manualSyncing) return;
+
+    setManualSyncing(true);
+    setManualSyncError(null);
+    try {
+      const errors = [];
+      try {
+        await syncService.flushPendingQueue();
+      } catch (error) {
+        errors.push(error?.message || 'Error enviando pendientes');
+      }
+
+      try {
+        await syncService.forceRefreshRemoteConfig(almacenId);
+      } catch (error) {
+        errors.push(error?.message || 'Error descargando configuracion');
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['remote-config', almacenId] });
+      if (errors.length) throw new Error(errors.join(' / '));
+    } catch (error) {
+      setManualSyncError(error?.message || 'Error sincronizando');
+    } finally {
+      setManualSyncing(false);
+    }
+  }, [almacenId, manualSyncing, online, queryClient]);
+
   useEffect(() => {
     syncNow();
   }, [syncNow]);
@@ -54,11 +84,24 @@ export function useSyncManager(almacenId) {
     () => ({
       online,
       pendingCount,
-      isSyncing: syncMutation.isPending || configQuery.isFetching,
-      lastSyncError: syncMutation.error?.message ?? null,
+      isSyncing: manualSyncing || syncMutation.isPending || configQuery.isFetching,
+      lastSyncError: manualSyncError || syncMutation.error?.message || configQuery.error?.message || null,
       configLoading: configQuery.isLoading,
-      syncNow
+      syncNow,
+      forceSync
     }),
-    [online, pendingCount, syncMutation.isPending, syncMutation.error, configQuery.isFetching, configQuery.isLoading, syncNow]
+    [
+      online,
+      pendingCount,
+      manualSyncing,
+      manualSyncError,
+      syncMutation.isPending,
+      syncMutation.error,
+      configQuery.isFetching,
+      configQuery.isLoading,
+      configQuery.error,
+      syncNow,
+      forceSync
+    ]
   );
 }
