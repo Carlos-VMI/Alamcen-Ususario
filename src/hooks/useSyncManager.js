@@ -17,6 +17,7 @@ export function useSyncManager(almacenId) {
     enabled: Boolean(almacenId) && online,
     queryFn: () => syncService.downloadRemoteConfig(almacenId),
     staleTime: 60000,
+    refetchInterval: online ? SYNC_INTERVAL_MS : false,
     refetchOnWindowFocus: false
   });
 
@@ -53,11 +54,11 @@ export function useSyncManager(almacenId) {
     () => ({
       online,
       pendingCount,
-      isSyncing: syncMutation.isPending,
+      isSyncing: syncMutation.isPending || configQuery.isFetching,
       lastSyncError: syncMutation.error?.message ?? null,
       configLoading: configQuery.isLoading,
       syncNow
     }),
-    [online, pendingCount, syncMutation.isPending, syncMutation.error, configQuery.isLoading, syncNow]
+    [online, pendingCount, syncMutation.isPending, syncMutation.error, configQuery.isFetching, configQuery.isLoading, syncNow]
   );
 }

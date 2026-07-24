@@ -81,11 +81,25 @@ function makeWarehouseMeta(warehouse) {
 }
 
 async function clearLocalWarehouseData() {
-  await db.transaction('rw', db.estanterias_config, db.estados_baldas, db.cola_sincronizacion, async () => {
-    await db.estanterias_config.clear();
-    await db.estados_baldas.clear();
-    await db.cola_sincronizacion.clear();
-  });
+  await db.transaction(
+    'rw',
+    db.estanterias_config,
+    db.estados_baldas,
+    db.cola_sincronizacion,
+    db.almacen_modulos,
+    db.almacen_estantes,
+    db.almacen_articulos,
+    db.sync_metadata,
+    async () => {
+      await db.estanterias_config.clear();
+      await db.estados_baldas.clear();
+      await db.cola_sincronizacion.clear();
+      await db.almacen_modulos.clear();
+      await db.almacen_estantes.clear();
+      await db.almacen_articulos.clear();
+      await db.sync_metadata.clear();
+    }
+  );
 }
 
 async function persistSession({ operator, warehouse }) {

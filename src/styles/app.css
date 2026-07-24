@@ -283,9 +283,24 @@ main {
   color: #b45309;
 }
 
+.status-indicator.syncing {
+  background: var(--blue-soft);
+  color: #1d4ed8;
+}
+
+.status-indicator.syncing svg {
+  animation: spin 0.9s linear infinite;
+}
+
 .status-indicator.offline {
   background: var(--red-soft);
   color: var(--red);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .modal-backdrop {

@@ -1,4 +1,13 @@
-import { db, replaceShelfConfig, upsertShelfStates } from './db';
+import {
+  db,
+  getSyncMetadata,
+  mergeRawConfig,
+  readRawConfig,
+  replaceRawConfig,
+  replaceShelfConfig,
+  setSyncMetadata,
+  upsertShelfStates
+} from './db';
 import { supabase } from './supabaseClient';
 
 export const SYNC_INTERVAL_MS = 15000;
@@ -15,6 +24,14 @@ function nowIso() {
 
 function errorMessage(error) {
   return error?.message ?? String(error);
+}
+
+function configSyncKey(almacenId) {
+  return `remote_config_synced_at:${almacenId}`;
+}
+
+function statesSyncKey(almacenId) {
+  return `remote_states_synced_at:${almacenId}`;
 }
 
 function toNumber(value, fallback = 0) {
@@ -253,59 +270,112 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
 
 export const syncService = {
   async downloadRemoteConfig(almacenId) {
-    const { data: modules, error: modulesError } = await supabase
+    const lastSyncAt = await getSyncMetadata(configSyncKey(almacenId));
+    const syncStartedAt = nowIso();
+
+    let modulesQuery = supabase
       .from('almacen_modulos')
       .select('*')
       .eq('almacen_id', almacenId)
       .order('orden', { ascending: true });
 
+    if (lastSyncAt) modulesQuery = modulesQuery.gt('updated_at', lastSyncAt);
+
+    const { data: modules, error: modulesError } = await modulesQuery;
     if (modulesError) throw modulesError;
 
-    const moduleIds = (modules ?? []).map((module) => module.id);
-    const { data: shelves, error: shelvesError } = moduleIds.length
-      ? await supabase
+    const localBeforeMerge = await readRawConfig(almacenId);
+    const moduleIds = Array.from(new Set([
+      ...localBeforeMerge.modules.map((module) => module.id),
+      ...(modules ?? []).map((module) => module.id)
+    ]));
+
+    let shelvesResult = { data: [], error: null };
+    if (moduleIds.length) {
+      let shelvesQuery = supabase
         .from('almacen_estantes')
         .select('*')
         .in('modulo_id', moduleIds)
-        .order('numero', { ascending: true })
-      : { data: [], error: null };
+        .order('numero', { ascending: true });
 
+      if (lastSyncAt) shelvesQuery = shelvesQuery.gt('updated_at', lastSyncAt);
+      shelvesResult = await shelvesQuery;
+    }
+
+    const { data: shelves, error: shelvesError } = shelvesResult;
     if (shelvesError) throw shelvesError;
 
-    const { data: articles, error: articlesError } = await supabase
+    let articlesQuery = supabase
       .from('almacen_articulos')
       .select('*')
       .eq('almacen_id', almacenId)
       .order('sku', { ascending: true });
 
+    if (lastSyncAt) articlesQuery = articlesQuery.gt('updated_at', lastSyncAt);
+
+    const { data: articles, error: articlesError } = await articlesQuery;
     if (articlesError) throw articlesError;
 
+    if (lastSyncAt) {
+      await mergeRawConfig({
+        modules: modules ?? [],
+        shelves: shelves ?? [],
+        articles: articles ?? []
+      });
+    } else {
+      await replaceRawConfig({
+        modules: modules ?? [],
+        shelves: shelves ?? [],
+        articles: articles ?? []
+      });
+    }
+
+    const rawConfig = await readRawConfig(almacenId);
     const rows = buildShelfConfig({
-      modules: modules ?? [],
-      shelves: shelves ?? [],
-      articles: articles ?? [],
+      modules: rawConfig.modules,
+      shelves: rawConfig.shelves,
+      articles: rawConfig.articles,
       almacenId
     });
+
     await replaceShelfConfig(rows);
-    await this.downloadRemoteStates(rows.flatMap((row) => row.cubetas?.length ? row.cubetas.map((cubeta) => cubeta.id) : [row.id]));
+    await this.downloadRemoteStates(
+      rows.flatMap((row) => row.cubetas?.length ? row.cubetas.map((cubeta) => cubeta.id) : [row.id]),
+      almacenId
+    );
+    await setSyncMetadata(configSyncKey(almacenId), syncStartedAt);
     return rows;
   },
 
-  async downloadRemoteStates(shelfIds) {
+  async downloadRemoteStates(shelfIds, almacenId) {
     if (!shelfIds.length) return [];
 
-    const { data, error } = await supabase
+    const lastSyncAt = almacenId ? await getSyncMetadata(statesSyncKey(almacenId)) : null;
+    const syncStartedAt = nowIso();
+    let query = supabase
       .from('estados_baldas')
       .select('*')
       .in('id_balda', shelfIds);
 
+    if (lastSyncAt) query = query.gt('updated_at', lastSyncAt);
+
+    const { data, error } = await query;
+
     if (error) throw error;
 
-    const rows = data ?? [];
+    const pendingStateIds = new Set(
+      (await db.cola_sincronizacion
+        .where('tipo')
+        .equals('estado_balda.updated')
+        .toArray())
+        .map((item) => item.entity_id)
+    );
+    const rows = (data ?? []).filter((row) => !pendingStateIds.has(row.id_balda));
     if (rows.length) {
       await db.estados_baldas.bulkPut(rows);
     }
 
+    if (almacenId) await setSyncMetadata(statesSyncKey(almacenId), syncStartedAt);
     return rows;
   },
 
@@ -426,8 +496,57 @@ export const syncService = {
 
     const items = await db.cola_sincronizacion.orderBy('created_at').limit(limit).toArray();
     let synced = 0;
+    const stateItems = items.filter((item) => item.tipo === 'estado_balda.updated');
+    const otherItems = items.filter((item) => item.tipo !== 'estado_balda.updated');
 
-    for (const item of items) {
+    if (stateItems.length) {
+      try {
+        const latestByEntity = new Map();
+        for (const item of stateItems) {
+          const existing = latestByEntity.get(item.entity_id);
+          if (!existing || String(item.payload?.updated_at ?? '') >= String(existing.payload?.updated_at ?? '')) {
+            latestByEntity.set(item.entity_id, item);
+          }
+        }
+
+        const payload = Array.from(latestByEntity.values()).map((item) => ({
+          id_balda: item.payload.id_balda,
+          estado: item.payload.estado,
+          updated_at: item.payload.updated_at
+        }));
+
+        const { error } = await supabase
+          .from('estados_baldas')
+          .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false });
+
+        if (error) throw error;
+
+        const syncedAt = nowIso();
+        await db.transaction('rw', db.estados_baldas, db.cola_sincronizacion, async () => {
+          await db.estados_baldas.bulkPut(
+            payload.map((row) => ({
+              id_balda: row.id_balda,
+              estado: row.estado,
+              updated_at: row.updated_at,
+              synced_at: syncedAt
+            }))
+          );
+          await db.cola_sincronizacion.bulkDelete(stateItems.map((item) => item.id));
+        });
+        synced += stateItems.length;
+      } catch (error) {
+        await db.transaction('rw', db.cola_sincronizacion, async () => {
+          for (const item of stateItems) {
+            await db.cola_sincronizacion.update(item.id, {
+              attempts: (item.attempts ?? 0) + 1,
+              last_error: errorMessage(error)
+            });
+          }
+        });
+      }
+    }
+
+    for (const item of otherItems) {
       try {
         await this.syncQueueItem(item);
         await db.cola_sincronizacion.delete(item.id);
