@@ -27,6 +27,21 @@ function errorMessage(error) {
   return error?.message ?? String(error);
 }
 
+function isSchemaCacheError(error) {
+  const message = errorMessage(error).toLowerCase();
+  return message.includes('schema cache')
+    || message.includes('could not find the table')
+    || message.includes('relation') && message.includes('does not exist');
+}
+
+function maxUpdatedAt(items) {
+  return items
+    .map((item) => item.payload?.updated_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1) || nowIso();
+}
+
 function withTimeout(promise, label, timeoutMs = SYNC_TIMEOUT_MS) {
   let timeoutId;
   const timeout = new Promise((_, reject) => {
@@ -47,6 +62,8 @@ function configSyncKey(almacenId) {
 function statesSyncKey(almacenId) {
   return `remote_states_synced_at:${almacenId}`;
 }
+
+const LEGACY_QUEUE_PURGE_KEY = 'legacy_estados_baldas_queue_purged_v1';
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -140,6 +157,8 @@ function buildArticleCubetas(article, suffixSource) {
       sku: `${article.sku}-${normalizedSuffix}`,
       descripcion: article.descripcion,
       capacidad: toNumber(suffix.capacidad ?? suffix.cantidad ?? article.capacidad, 0),
+      estado: suffix.estado || SHELF_STATES.FULL,
+      estado_updated_at: suffix.estado_updated_at || article.updated_at,
       updated_at: article.updated_at
     };
   });
@@ -377,30 +396,12 @@ export const syncService = {
     });
 
     await replaceShelfConfig(rows);
-    await this.downloadRemoteStates(
-      rows.flatMap((row) => row.cubetas?.length ? row.cubetas.map((cubeta) => cubeta.id) : [row.id]),
-      almacenId
-    );
+    await this.applyArticleStatesToLocal(rows);
     await setSyncMetadata(configSyncKey(almacenId), syncStartedAt);
     return rows;
   },
 
-  async downloadRemoteStates(shelfIds, almacenId) {
-    if (!shelfIds.length) return [];
-
-    const lastSyncAt = almacenId ? await getSyncMetadata(statesSyncKey(almacenId)) : null;
-    const syncStartedAt = nowIso();
-    let query = supabase
-      .from('estados_baldas')
-      .select('*')
-      .in('id_balda', shelfIds);
-
-    if (lastSyncAt) query = query.gt('updated_at', lastSyncAt);
-
-    const { data, error } = await withTimeout(query, 'Descarga de estados');
-
-    if (error) throw error;
-
+  async applyArticleStatesToLocal(configRows) {
     const pendingStateIds = new Set(
       (await db.cola_sincronizacion
         .where('tipo')
@@ -408,12 +409,20 @@ export const syncService = {
         .toArray())
         .map((item) => item.entity_id)
     );
-    const rows = (data ?? []).filter((row) => !pendingStateIds.has(row.id_balda));
+    const rows = configRows
+      .flatMap((row) => row.cubetas?.length ? row.cubetas : [row])
+      .filter((cubeta) => cubeta.sku && !pendingStateIds.has(cubeta.id))
+      .map((cubeta) => ({
+        id_balda: cubeta.id,
+        estado: cubeta.estado || SHELF_STATES.FULL,
+        updated_at: cubeta.estado_updated_at || cubeta.updated_at || nowIso(),
+        synced_at: nowIso()
+      }));
+
     if (rows.length) {
       await db.estados_baldas.bulkPut(rows);
     }
 
-    if (almacenId) await setSyncMetadata(statesSyncKey(almacenId), syncStartedAt);
     return rows;
   },
 
@@ -529,6 +538,85 @@ export const syncService = {
     return db.cola_sincronizacion.count();
   },
 
+  async purgeLegacyStateQueueOnce() {
+    const alreadyPurged = await getSyncMetadata(LEGACY_QUEUE_PURGE_KEY);
+    if (alreadyPurged) return 0;
+
+    const legacyItems = await db.cola_sincronizacion
+      .where('tipo')
+      .equals('estado_balda.updated')
+      .toArray();
+
+    if (legacyItems.length) {
+      await db.cola_sincronizacion.bulkDelete(legacyItems.map((item) => item.id));
+    }
+
+    await setSyncMetadata(LEGACY_QUEUE_PURGE_KEY, nowIso());
+    return legacyItems.length;
+  },
+
+  async syncStateItemsToArticles(stateItems) {
+    const latestByEntity = new Map();
+    for (const item of stateItems) {
+      const existing = latestByEntity.get(item.entity_id);
+      if (!existing || String(item.payload?.updated_at ?? '') >= String(existing.payload?.updated_at ?? '')) {
+        latestByEntity.set(item.entity_id, item);
+      }
+    }
+
+    const configRows = await db.estanterias_config.toArray();
+    const cubetasById = new Map();
+    for (const row of configRows) {
+      const cubetas = row.cubetas?.length ? row.cubetas : [row];
+      for (const cubeta of cubetas) {
+        cubetasById.set(cubeta.id, cubeta);
+      }
+    }
+
+    const changesByArticle = new Map();
+    for (const item of latestByEntity.values()) {
+      const cubeta = cubetasById.get(item.entity_id);
+      if (!cubeta?.articulo_id || !cubeta.sufijo) continue;
+
+      const changes = changesByArticle.get(cubeta.articulo_id) ?? [];
+      changes.push({ item, cubeta });
+      changesByArticle.set(cubeta.articulo_id, changes);
+    }
+
+    for (const [articleId, changes] of changesByArticle.entries()) {
+      const article = await db.almacen_articulos.get(articleId);
+      if (!article) continue;
+
+      const changesBySuffix = new Map(changes.map(({ item, cubeta }) => [cubeta.sufijo, item]));
+      const updatedAt = maxUpdatedAt(changes.map(({ item }) => item));
+      const suffixes = normalizeSuffixes(article.sufijos).map((suffix, index) => {
+        const normalizedSuffix = normalizeSuffix(suffix.sufijo, index);
+        const change = changesBySuffix.get(normalizedSuffix);
+        if (!change) return suffix;
+
+        return {
+          ...suffix,
+          sufijo: normalizedSuffix,
+          estado: change.payload.estado,
+          estado_updated_at: change.payload.updated_at
+        };
+      });
+
+      const { error } = await withTimeout(
+        supabase
+          .from('almacen_articulos')
+          .update({ sufijos: suffixes, updated_at: updatedAt })
+          .eq('id', articleId),
+        'Envio batch de estados a articulos'
+      );
+
+      if (error) throw error;
+      await db.almacen_articulos.update(articleId, { sufijos: suffixes, updated_at: updatedAt });
+    }
+
+    return Array.from(latestByEntity.values());
+  },
+
   async flushPendingQueue({ limit = SYNC_BATCH_SIZE } = {}) {
     if (!navigator.onLine) return { synced: 0, skipped: 'offline' };
 
@@ -539,28 +627,12 @@ export const syncService = {
 
     if (stateItems.length) {
       try {
-        const latestByEntity = new Map();
-        for (const item of stateItems) {
-          const existing = latestByEntity.get(item.entity_id);
-          if (!existing || String(item.payload?.updated_at ?? '') >= String(existing.payload?.updated_at ?? '')) {
-            latestByEntity.set(item.entity_id, item);
-          }
-        }
-
-        const payload = Array.from(latestByEntity.values()).map((item) => ({
+        const syncedStateItems = await this.syncStateItemsToArticles(stateItems);
+        const payload = syncedStateItems.map((item) => ({
           id_balda: item.payload.id_balda,
           estado: item.payload.estado,
           updated_at: item.payload.updated_at
         }));
-
-        const { error } = await withTimeout(
-          supabase
-            .from('estados_baldas')
-            .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false }),
-          'Envio batch de estados'
-        );
-
-        if (error) throw error;
 
         const syncedAt = nowIso();
         await db.transaction('rw', db.estados_baldas, db.cola_sincronizacion, async () => {
@@ -572,10 +644,15 @@ export const syncService = {
               synced_at: syncedAt
             }))
           );
-          await db.cola_sincronizacion.bulkDelete(stateItems.map((item) => item.id));
+          await db.cola_sincronizacion.bulkDelete(syncedStateItems.map((item) => item.id));
         });
-        synced += stateItems.length;
+        synced += syncedStateItems.length;
       } catch (error) {
+        if (isSchemaCacheError(error)) {
+          await db.cola_sincronizacion.bulkDelete(stateItems.map((item) => item.id));
+          return { synced, discarded: stateItems.length, error: errorMessage(error) };
+        }
+
         await db.transaction('rw', db.cola_sincronizacion, async () => {
           for (const item of stateItems) {
             await db.cola_sincronizacion.update(item.id, {
@@ -605,21 +682,11 @@ export const syncService = {
 
   async syncQueueItem(item) {
     if (item.tipo === 'estado_balda.updated') {
-      const payload = {
+      await this.syncStateItemsToArticles([item]);
+      await db.estados_baldas.put({
         id_balda: item.payload.id_balda,
         estado: item.payload.estado,
-        updated_at: item.payload.updated_at
-      };
-      const { error } = await withTimeout(
-        supabase
-          .from('estados_baldas')
-          .upsert(payload, { onConflict: 'id_balda', ignoreDuplicates: false }),
-        'Envio de estado'
-      );
-
-      if (error) throw error;
-
-      await db.estados_baldas.update(item.entity_id, {
+        updated_at: item.payload.updated_at,
         synced_at: nowIso()
       });
       return;

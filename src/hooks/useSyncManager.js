@@ -34,6 +34,13 @@ export function useSyncManager(almacenId) {
     refetchOnWindowFocus: false
   });
 
+  useEffect(() => {
+    if (!almacenId) return;
+    syncService.purgeLegacyStateQueueOnce().catch((error) => {
+      setAutoSyncError(error?.message || 'Error limpiando cola local');
+    });
+  }, [almacenId]);
+
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;
     if (!onlineRef.current || pendingCountRef.current === 0) return;
