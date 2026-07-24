@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { SYNC_INTERVAL_MS, syncService } from '../lib/syncService';
 import { useLiveQuery } from './useLiveQuery';
@@ -8,39 +8,54 @@ import { useOnlineStatus } from './useOnlineStatus';
 export function useSyncManager(almacenId) {
   const online = useOnlineStatus();
   const queryClient = useQueryClient();
+  const syncLockRef = useRef(false);
+  const onlineRef = useRef(online);
+  const pendingCountRef = useRef(0);
+  const almacenIdRef = useRef(almacenId);
+  const [autoSyncing, setAutoSyncing] = useState(false);
+  const [autoSyncError, setAutoSyncError] = useState(null);
   const [manualSyncing, setManualSyncing] = useState(false);
   const [manualSyncError, setManualSyncError] = useState(null);
   const queue = useLiveQuery(() => db.cola_sincronizacion.orderBy('created_at').toArray(), [], []);
 
   const pendingCount = queue.length;
 
+  useEffect(() => {
+    onlineRef.current = online;
+    pendingCountRef.current = pendingCount;
+    almacenIdRef.current = almacenId;
+  }, [almacenId, online, pendingCount]);
+
   const configQuery = useQuery({
     queryKey: ['remote-config', almacenId],
     enabled: Boolean(almacenId) && online,
     queryFn: () => syncService.downloadRemoteConfig(almacenId),
     staleTime: 60000,
-    refetchInterval: online ? SYNC_INTERVAL_MS : false,
     refetchOnWindowFocus: false
   });
 
-  const syncMutation = useMutation({
-    mutationFn: () => syncService.flushPendingQueue(),
-    retry: 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['remote-config', almacenId] });
-    }
-  });
+  const syncNow = useCallback(async () => {
+    if (syncLockRef.current) return;
+    if (!onlineRef.current || pendingCountRef.current === 0) return;
 
-  const syncNow = useCallback(() => {
-    if (online && pendingCount > 0 && !syncMutation.isPending) {
-      syncMutation.mutate();
+    syncLockRef.current = true;
+    setAutoSyncing(true);
+    setAutoSyncError(null);
+    try {
+      await syncService.flushPendingQueue();
+    } catch (error) {
+      setAutoSyncError(error?.message || 'Error enviando pendientes');
+    } finally {
+      syncLockRef.current = false;
+      setAutoSyncing(false);
     }
-  }, [online, pendingCount, syncMutation]);
+  }, []);
 
   const forceSync = useCallback(async () => {
-    if (!online || !almacenId || manualSyncing) return;
+    if (syncLockRef.current) return;
+    if (!onlineRef.current || !almacenIdRef.current) return;
 
+    syncLockRef.current = true;
     setManualSyncing(true);
     setManualSyncError(null);
     try {
@@ -52,23 +67,26 @@ export function useSyncManager(almacenId) {
       }
 
       try {
-        await syncService.forceRefreshRemoteConfig(almacenId);
+        const rows = await syncService.forceRefreshRemoteConfig(almacenIdRef.current);
+        queryClient.setQueryData(['remote-config', almacenIdRef.current], rows);
       } catch (error) {
         errors.push(error?.message || 'Error descargando configuracion');
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['remote-config', almacenId] });
       if (errors.length) throw new Error(errors.join(' / '));
     } catch (error) {
       setManualSyncError(error?.message || 'Error sincronizando');
     } finally {
+      syncLockRef.current = false;
       setManualSyncing(false);
     }
-  }, [almacenId, manualSyncing, online, queryClient]);
+  }, [queryClient]);
 
   useEffect(() => {
-    syncNow();
-  }, [syncNow]);
+    if (online && pendingCount > 0) {
+      syncNow();
+    }
+  }, [online, pendingCount, syncNow]);
 
   useEffect(() => {
     const interval = window.setInterval(syncNow, SYNC_INTERVAL_MS);
@@ -84,8 +102,8 @@ export function useSyncManager(almacenId) {
     () => ({
       online,
       pendingCount,
-      isSyncing: manualSyncing || syncMutation.isPending || configQuery.isFetching,
-      lastSyncError: manualSyncError || syncMutation.error?.message || configQuery.error?.message || null,
+      isSyncing: autoSyncing || manualSyncing || configQuery.isFetching,
+      lastSyncError: manualSyncError || autoSyncError || configQuery.error?.message || null,
       configLoading: configQuery.isLoading,
       syncNow,
       forceSync
@@ -93,10 +111,10 @@ export function useSyncManager(almacenId) {
     [
       online,
       pendingCount,
+      autoSyncing,
+      autoSyncError,
       manualSyncing,
       manualSyncError,
-      syncMutation.isPending,
-      syncMutation.error,
       configQuery.isFetching,
       configQuery.isLoading,
       configQuery.error,
