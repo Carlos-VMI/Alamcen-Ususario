@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { SYNC_INTERVAL_MS, syncService } from '../lib/syncService';
+import { supabase } from '../lib/supabaseClient';
 import { useLiveQuery } from './useLiveQuery';
 import { useOnlineStatus } from './useOnlineStatus';
 
@@ -40,6 +41,32 @@ export function useSyncManager(almacenId) {
       setAutoSyncError(error?.message || 'Error limpiando cola local');
     });
   }, [almacenId]);
+
+  useEffect(() => {
+    if (!almacenId || !online) return undefined;
+
+    const channel = supabase
+      .channel(`operario-articulos-${almacenId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'almacen_articulos',
+          filter: `almacen_id=eq.${almacenId}`
+        },
+        (payload) => {
+          syncService.applyArticleRealtimeChange(almacenId, payload).catch((error) => {
+            setAutoSyncError(error?.message || 'Error actualizando articulo realtime');
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [almacenId, online]);
 
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;

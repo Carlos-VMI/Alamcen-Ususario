@@ -326,6 +326,44 @@ export const syncService = {
     return this.downloadRemoteConfig(almacenId);
   },
 
+  async rebuildShelfConfigFromLocalCache(almacenId) {
+    const rawConfig = await readRawConfig(almacenId);
+    const rows = buildShelfConfig({
+      modules: rawConfig.modules,
+      shelves: rawConfig.shelves,
+      articles: rawConfig.articles,
+      almacenId
+    });
+
+    await replaceShelfConfig(rows);
+    await this.applyArticleStatesToLocal(rows);
+    return rows;
+  },
+
+  async applyArticleRealtimeChange(almacenId, payload) {
+    const eventType = payload.eventType;
+    const nextRow = payload.new;
+    const oldRow = payload.old;
+
+    if (eventType === 'DELETE') {
+      if (oldRow?.id) await db.almacen_articulos.delete(oldRow.id);
+      return this.rebuildShelfConfigFromLocalCache(almacenId);
+    }
+
+    if (nextRow?.almacen_id && nextRow.almacen_id !== almacenId) {
+      return db.estanterias_config.toArray();
+    }
+
+    if (nextRow?.id) {
+      await db.almacen_articulos.put(nextRow);
+      if (nextRow.updated_at) {
+        await setSyncMetadata(configSyncKey(almacenId), nextRow.updated_at);
+      }
+    }
+
+    return this.rebuildShelfConfigFromLocalCache(almacenId);
+  },
+
   async downloadRemoteConfig(almacenId) {
     const lastSyncAt = await getSyncMetadata(configSyncKey(almacenId));
     const syncStartedAt = nowIso();
