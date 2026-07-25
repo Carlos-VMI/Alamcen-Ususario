@@ -43,7 +43,7 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
   }
 
   return (
-    <article className={`sku-cell ${hasArticle ? 'assigned' : 'unassigned'} ${viewMode}`}>
+    <article className={`sku-cell ${hasArticle ? 'assigned' : 'unassigned'} ${cubetas.length > 1 ? 'shared-sku' : ''} ${viewMode}`}>
       <div
         className="cubeta-grid"
         style={{ gridTemplateColumns: `repeat(${Math.max(1, cubetas.length)}, minmax(0, 1fr))` }}
