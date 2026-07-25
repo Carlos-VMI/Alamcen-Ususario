@@ -6,10 +6,14 @@ import { supabase } from '../lib/supabaseClient';
 import { useLiveQuery } from './useLiveQuery';
 import { useOnlineStatus } from './useOnlineStatus';
 
+const CONFIG_POLL_INTERVAL_MS = 10000;
+const CONFIG_POLL_HIDDEN_INTERVAL_MS = 60000;
+
 export function useSyncManager(almacenId) {
   const online = useOnlineStatus();
   const queryClient = useQueryClient();
   const syncLockRef = useRef(false);
+  const configPollLockRef = useRef(false);
   const onlineRef = useRef(online);
   const pendingCountRef = useRef(0);
   const almacenIdRef = useRef(almacenId);
@@ -17,6 +21,8 @@ export function useSyncManager(almacenId) {
   const [autoSyncError, setAutoSyncError] = useState(null);
   const [manualSyncing, setManualSyncing] = useState(false);
   const [manualSyncError, setManualSyncError] = useState(null);
+  const [lastSuccessfulSyncAt, setLastSuccessfulSyncAt] = useState(null);
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== 'hidden');
   const queue = useLiveQuery(() => db.cola_sincronizacion.orderBy('created_at').toArray(), [], []);
 
   const pendingCount = queue.length;
@@ -34,6 +40,23 @@ export function useSyncManager(almacenId) {
     staleTime: 60000,
     refetchOnWindowFocus: false
   });
+
+  useEffect(() => {
+    if (configQuery.dataUpdatedAt) {
+      setLastSuccessfulSyncAt(new Date(configQuery.dataUpdatedAt));
+    }
+  }, [configQuery.dataUpdatedAt]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setPageVisible(document.visibilityState !== 'hidden');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!almacenId) return;
@@ -85,6 +108,23 @@ export function useSyncManager(almacenId) {
     }
   }, []);
 
+  const pollRemoteConfig = useCallback(async () => {
+    const activeAlmacenId = almacenIdRef.current;
+    if (!onlineRef.current || !activeAlmacenId || configPollLockRef.current) return;
+
+    configPollLockRef.current = true;
+    try {
+      const rows = await syncService.downloadRemoteConfig(activeAlmacenId);
+      queryClient.setQueryData(['remote-config', activeAlmacenId], rows);
+      setLastSuccessfulSyncAt(new Date());
+      setAutoSyncError(null);
+    } catch (error) {
+      setAutoSyncError(error?.message || 'Error actualizando configuracion');
+    } finally {
+      configPollLockRef.current = false;
+    }
+  }, [queryClient]);
+
   const forceSync = useCallback(async () => {
     if (syncLockRef.current) return;
     if (!onlineRef.current || !almacenIdRef.current) return;
@@ -103,6 +143,7 @@ export function useSyncManager(almacenId) {
       try {
         const rows = await syncService.forceRefreshRemoteConfig(almacenIdRef.current);
         queryClient.setQueryData(['remote-config', almacenIdRef.current], rows);
+        setLastSuccessfulSyncAt(new Date());
       } catch (error) {
         errors.push(error?.message || 'Error descargando configuracion');
       }
@@ -132,12 +173,28 @@ export function useSyncManager(almacenId) {
     };
   }, [syncNow]);
 
+  useEffect(() => {
+    if (!almacenId || !online) return undefined;
+
+    const delay = pageVisible ? CONFIG_POLL_INTERVAL_MS : CONFIG_POLL_HIDDEN_INTERVAL_MS;
+    const interval = window.setInterval(pollRemoteConfig, delay);
+
+    if (pageVisible) {
+      pollRemoteConfig();
+    }
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [almacenId, online, pageVisible, pollRemoteConfig]);
+
   return useMemo(
     () => ({
       online,
       pendingCount,
       isSyncing: autoSyncing || manualSyncing || configQuery.isFetching,
       lastSyncError: manualSyncError || autoSyncError || configQuery.error?.message || null,
+      lastSuccessfulSyncAt,
       configLoading: configQuery.isLoading,
       syncNow,
       forceSync
@@ -149,6 +206,7 @@ export function useSyncManager(almacenId) {
       autoSyncError,
       manualSyncing,
       manualSyncError,
+      lastSuccessfulSyncAt,
       configQuery.isFetching,
       configQuery.isLoading,
       configQuery.error,

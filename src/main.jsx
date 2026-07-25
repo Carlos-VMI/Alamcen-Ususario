@@ -49,7 +49,7 @@ function getStoredWarehouseMeta() {
 }
 
 function getStoredOperator() {
-  return null;
+  return readJsonStorage(ACTIVE_OPERATOR_KEY);
 }
 
 function normalizeRole(role) {
@@ -112,6 +112,12 @@ async function persistSession({ operator, warehouse }) {
 
   window.localStorage.setItem(ACTIVE_WAREHOUSE_KEY, meta.id);
   window.localStorage.setItem(ACTIVE_WAREHOUSE_META_KEY, JSON.stringify(meta));
+  window.localStorage.setItem(ACTIVE_OPERATOR_KEY, JSON.stringify({
+    id: operator.id,
+    almacen_id: operator.almacen_id,
+    nombre: operator.nombre,
+    rol: normalizeRole(operator.rol)
+  }));
 
   return meta;
 }
@@ -508,7 +514,14 @@ function App() {
 
       <main>
         {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
-        <WarehouseView config={config} estados={estados} operatorRole={operator.rol} viewMode={viewMode} />
+        {sync.configLoading && config.length === 0 ? (
+          <section className="empty-state">
+            <h2>Cargando configuracion...</h2>
+            <p>Descargando modulos, estantes y articulos desde Supabase.</p>
+          </section>
+        ) : (
+          <WarehouseView config={config} estados={estados} operatorRole={operator.rol} viewMode={viewMode} />
+        )}
       </main>
 
       {logoutOpen ? (
