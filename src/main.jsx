@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { PickToLightView } from './components/PickToLightView';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
@@ -494,6 +495,13 @@ function App() {
             >
               Items
             </button>
+            <button
+              className={viewMode === 'pick' ? 'active' : ''}
+              type="button"
+              onClick={() => setViewMode('pick')}
+            >
+              Pick
+            </button>
           </div>
           <button
             className="pedido-button"
@@ -519,6 +527,8 @@ function App() {
             <h2>Cargando configuracion...</h2>
             <p>Descargando modulos, estantes y articulos desde Supabase.</p>
           </section>
+        ) : viewMode === 'pick' ? (
+          <PickToLightView />
         ) : (
           <WarehouseView config={config} estados={estados} operatorRole={operator.rol} viewMode={viewMode} />
         )}

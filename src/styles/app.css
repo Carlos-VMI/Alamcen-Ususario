@@ -844,6 +844,307 @@ main {
   margin: 0;
 }
 
+.pick-screen {
+  display: grid;
+  gap: 16px;
+}
+
+.pick-command-panel {
+  display: flex;
+  justify-content: center;
+  position: sticky;
+  top: 88px;
+  z-index: 6;
+}
+
+.pick-search-wrap {
+  max-width: 980px;
+  position: relative;
+  width: min(100%, 980px);
+}
+
+.pick-search-row {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cfd5dd;
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(31, 41, 55, 0.12);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 58px auto;
+  padding: 10px;
+}
+
+.pick-search-input {
+  appearance: none;
+  background: #f8fafc;
+  border: 2px solid #2f5e94;
+  border-radius: 7px;
+  color: #111827;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  min-height: 58px;
+  outline: none;
+  padding: 0 18px;
+}
+
+.pick-search-input:focus {
+  border-color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px #1d4ed8;
+}
+
+.pick-mic-button,
+.pick-search-button,
+.pick-ready-button,
+.pick-clear-button {
+  min-height: 58px;
+}
+
+.pick-mic-button {
+  background: #2f5e94;
+  color: #fff;
+}
+
+.pick-mic-button.recording {
+  background: #b42318;
+  animation: pickPulse 1s ease-in-out infinite;
+}
+
+.pick-search-button {
+  background: #111827;
+  color: #fff;
+  font-size: 16px;
+  padding: 0 20px;
+}
+
+.pick-list-panel {
+  background: #ffffff;
+  border: 1px solid #cfd5dd;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 18px 38px rgba(31, 41, 55, 0.14);
+  left: 12px;
+  max-height: 340px;
+  overflow: auto;
+  padding: 10px;
+  position: absolute;
+  right: 12px;
+  top: calc(100% - 2px);
+  z-index: 7;
+}
+
+.pick-list-items {
+  display: grid;
+  gap: 8px;
+}
+
+.pick-list-item {
+  align-items: center;
+  border: 1px solid #d8dcdf;
+  border-left: 5px solid #9ca3af;
+  border-radius: 7px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 8px 10px;
+}
+
+.pick-list-item.matched {
+  background: #f0fdf4;
+  border-left-color: #15803d;
+}
+
+.pick-list-item.missing {
+  background: #fff7ed;
+  border-left-color: #f59e0b;
+}
+
+.pick-list-item strong,
+.pick-list-item span {
+  display: block;
+}
+
+.pick-list-item strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.pick-list-item span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 3px;
+}
+
+.pick-list-item button {
+  background: #f3f4f6;
+  color: #344054;
+  flex: 0 0 auto;
+  height: 34px;
+  width: 34px;
+}
+
+.pick-notice,
+.pick-error {
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 10px 0 0;
+  padding: 9px 10px;
+}
+
+.pick-notice {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.pick-error {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.pick-actions-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.pick-ready-button {
+  background: #15803d;
+  color: #fff;
+  font-size: 16px;
+  padding: 0 22px;
+}
+
+.pick-clear-button {
+  background: #ffffff;
+  border-color: #cfd5dd;
+  color: #344054;
+  padding: 0 16px;
+}
+
+.pick-grid-shell {
+  background: #ffffff;
+  border: 1px solid #cfd5dd;
+  border-left: 7px solid #2f5e94;
+  border-right: 7px solid #2f5e94;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(31, 41, 51, 0.08);
+  overflow: hidden;
+}
+
+.pick-grid-header {
+  align-items: center;
+  background: #d7d7d7;
+  border-bottom: 7px solid #2f5e94;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.pick-grid-header h2,
+.pick-grid-header p {
+  margin: 0;
+}
+
+.pick-grid-header h2 {
+  color: #111827;
+  font-size: 18px;
+}
+
+.pick-grid-header p {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pick-grid {
+  background: #2f5e94;
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+}
+
+.pick-cell {
+  align-content: center;
+  background: #e5e7eb;
+  border: 2px solid #b8c0cc;
+  border-radius: 5px;
+  color: #344054;
+  display: grid;
+  gap: 5px;
+  min-height: 112px;
+  min-width: 0;
+  padding: 10px;
+  text-align: center;
+}
+
+.pick-cell.configured {
+  background: #f8fafc;
+  border-color: #9ca3af;
+}
+
+.pick-cell.blinking {
+  animation: pickBlink 0.65s ease-in-out infinite;
+  border-color: #a16207;
+  color: #713f12;
+}
+
+.pick-cell.solid {
+  background: linear-gradient(180deg, #1fbd75, #15803d);
+  border-color: #0f6b32;
+  color: #ffffff;
+}
+
+.pick-cell-location {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.78;
+}
+
+.pick-cell strong {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.pick-cell small,
+.pick-cell em {
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes pickBlink {
+  0%,
+  100% {
+    background: #fef3c7;
+    box-shadow: inset 0 0 0 2px #facc15;
+  }
+
+  50% {
+    background: #facc15;
+    box-shadow: inset 0 0 0 4px #a16207;
+  }
+}
+
+@keyframes pickPulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0.3);
+  }
+
+  50% {
+    box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.22);
+  }
+}
+
 @media (max-width: 760px) {
   .app-header {
     align-items: flex-start;
@@ -881,5 +1182,31 @@ main {
 
   .cubeta-card {
     min-height: 48px;
+  }
+
+  .pick-command-panel {
+    position: static;
+  }
+
+  .pick-search-row {
+    grid-template-columns: minmax(0, 1fr) 54px;
+  }
+
+  .pick-search-button {
+    grid-column: 1 / -1;
+  }
+
+  .pick-list-panel {
+    left: 0;
+    position: static;
+    right: 0;
+  }
+
+  .pick-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .pick-cell {
+    min-height: 96px;
   }
 }
