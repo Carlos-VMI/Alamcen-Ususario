@@ -13,17 +13,17 @@ function groupBy(items, getKey) {
 function stateClassForShelf(shelf, estadosById, pickLightStates = {}) {
   const cubetas = shelf.cubetas?.length ? shelf.cubetas : [shelf];
   if (!cubetas.some((cubeta) => cubeta.sku)) return 'unassigned';
-  if (cubetas.some((cubeta) => pickLightStates[cubeta.id] === 'blinking')) return 'pick-blinking';
-  if (cubetas.some((cubeta) => pickLightStates[cubeta.id] === 'solid')) return 'pick-solid';
+  if (pickLightStates[shelf.id] === 'blinking') return 'pick-blinking';
+  if (pickLightStates[shelf.id] === 'solid') return 'pick-solid';
   if (cubetas.some((cubeta) => estadosById.get(cubeta.id) === 'vacio')) return 'vacio';
   if (cubetas.some((cubeta) => estadosById.get(cubeta.id) === 'pedido')) return 'pedido';
   return 'lleno';
 }
 
-function stateClassForCubeta(cubeta, estadosById, pickLightStates = {}) {
+function stateClassForCubeta(cubeta, estadosById, pickLightStates = {}, shelfId = '') {
   if (!cubeta.sku) return 'unassigned';
-  if (pickLightStates[cubeta.id] === 'blinking') return 'pick-blinking';
-  if (pickLightStates[cubeta.id] === 'solid') return 'pick-solid';
+  if (pickLightStates[shelfId] === 'blinking') return 'pick-blinking';
+  if (pickLightStates[shelfId] === 'solid') return 'pick-solid';
   return estadosById.get(cubeta.id) || 'lleno';
 }
 
@@ -61,7 +61,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                       >
                         {cubetas.map((cubeta, cubetaIndex) => (
                           <span
-                            className={`overview-cubeta ${stateClassForCubeta(cubeta, estadosById, pickLightStates)}`}
+                            className={`overview-cubeta ${stateClassForCubeta(cubeta, estadosById, pickLightStates, shelf.id)}`}
                             key={cubeta.id || `${shelf.id}-${cubetaIndex}`}
                           />
                         ))}

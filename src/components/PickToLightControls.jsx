@@ -1,40 +1,38 @@
 import { Check, Mic, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { transcribeAudioWithWhisper } from '../lib/voiceTranscriptionService';
 
 const BLINK_DURATION_MS = 5000;
 
 function normalizeText(value) {
   return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
 }
 
-function splitVoiceText(text) {
-  return String(text || '')
-    .split(/,|;|\by\b|\n/gi)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
 function flattenInventory(config) {
-  return config.flatMap((balda) => {
-    const cubetas = balda.cubetas?.length ? balda.cubetas : [balda];
-    return cubetas
-      .filter((cubeta) => cubeta.sku)
-      .map((cubeta) => ({
-        id: cubeta.id,
-        sku: cubeta.sku,
-        skuBase: cubeta.sku_base || balda.sku_base || balda.sku,
-        descripcion: cubeta.descripcion || balda.descripcion || '',
-        codigoArticulo: cubeta.codigo_articulo || balda.codigo_articulo || '',
-        codigoCliente: cubeta.codigo_cliente || balda.codigo_cliente || '',
-        ubicacion: cubeta.codigo_ubicacion || balda.codigo_ubicacion || '',
-        label: `${cubeta.descripcion || balda.descripcion || cubeta.sku} - ${cubeta.codigo_ubicacion || balda.codigo_ubicacion || ''}`
-      }));
-  });
+  return config
+    .map((balda) => {
+      const cubetas = balda.cubetas?.length ? balda.cubetas : [balda];
+      return {
+        id: balda.id,
+        sku: balda.sku || balda.sku_base || '',
+        skuBase: balda.sku_base || balda.sku || '',
+        descripcion: balda.descripcion || '',
+        codigoArticulo: balda.codigo_articulo || '',
+        codigoCliente: balda.codigo_cliente || '',
+        ubicacion: balda.codigo_ubicacion || '',
+        cubetas: cubetas.map((cubeta) => ({
+          sku: cubeta.sku || '',
+          skuBase: cubeta.sku_base || '',
+          descripcion: cubeta.descripcion || '',
+          codigoArticulo: cubeta.codigo_articulo || '',
+          codigoCliente: cubeta.codigo_cliente || '',
+          ubicacion: cubeta.codigo_ubicacion || '',
+          sufijo: cubeta.sufijo || ''
+        }))
+      };
+    })
+    .filter((item) => item.sku || item.cubetas.some((cubeta) => cubeta.sku));
 }
 
 function findInventoryItem(text, inventory) {
@@ -48,7 +46,16 @@ function findInventoryItem(text, inventory) {
       item.descripcion,
       item.codigoArticulo,
       item.codigoCliente,
-      item.ubicacion
+      item.ubicacion,
+      ...item.cubetas.flatMap((cubeta) => [
+        cubeta.sku,
+        cubeta.skuBase,
+        cubeta.descripcion,
+        cubeta.codigoArticulo,
+        cubeta.codigoCliente,
+        cubeta.ubicacion,
+        cubeta.sufijo
+      ])
     ].map(normalizeText).filter(Boolean);
 
     return candidates.some((value) => value === query || value.includes(query) || query.includes(value));
@@ -61,10 +68,8 @@ export function PickToLightControls({ config, onLightStatesChange }) {
   const [lightStates, setLightStates] = useState({});
   const [isRecording, setIsRecording] = useState(false);
   const [message, setMessage] = useState('');
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const recognitionRef = useRef(null);
   const timersRef = useRef([]);
-  const inputRef = useRef(null);
   const inventory = useMemo(() => flattenInventory(config), [config]);
 
   const matches = useMemo(() => (
@@ -80,6 +85,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
 
   useEffect(() => () => {
     timersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    recognitionRef.current?.stop();
     onLightStatesChange({});
   }, [onLightStatesChange]);
 
@@ -128,7 +134,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
       blinkingState[item.id] = 'blinking';
     });
     setLightStates(blinkingState);
-    setMessage(`${foundItems.length} ubicacion${foundItems.length === 1 ? '' : 'es'} iluminada${foundItems.length === 1 ? '' : 's'}.`);
+    setMessage(`${foundItems.length} balda${foundItems.length === 1 ? '' : 's'} iluminada${foundItems.length === 1 ? '' : 's'}.`);
 
     const timerId = window.setTimeout(() => {
       setLightStates((current) => {
@@ -149,57 +155,50 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     setLightStates({});
     setQuery('');
     setMessage('');
-    inputRef.current?.focus();
   };
 
-  const startRecording = async () => {
+  const startRecognition = () => {
     if (isRecording) return;
-    setMessage('');
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data?.size) audioChunksRef.current.push(event.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        setIsRecording(false);
-
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        if (!audioBlob.size) return;
-
-        try {
-          const text = await transcribeAudioWithWhisper(audioBlob);
-          if (!text) {
-            setMessage('Audio grabado. Configura Whisper para transcribir automaticamente.');
-            return;
-          }
-          splitVoiceText(text).forEach(addPickEntry);
-        } catch (error) {
-          setMessage(error?.message || 'No se pudo interpretar el audio.');
-        }
-      };
-
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
-    } catch {
-      setMessage('No se pudo acceder al microfono.');
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setMessage('Este navegador no soporta reconocimiento de voz nativo.');
+      return;
     }
-  };
 
-  const stopRecording = () => {
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    const recognition = new Recognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results || [])
+        .map((result) => result?.[0]?.transcript || '')
+        .join(' ')
+        .trim();
+      if (transcript) setQuery(transcript);
+    };
+
+    recognition.onerror = () => {
+      setMessage('No se pudo transcribir la voz.');
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+    setMessage('');
   };
 
   const handleMicClick = () => {
-    if (isRecording) stopRecording();
-    else startRecording();
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    startRecognition();
   };
 
   const hasPopover = pickList.length > 0 || message;
@@ -208,9 +207,8 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     <div className="pick-header-tools">
       <div className="pick-header-search">
         <input
-          ref={inputRef}
           className="pick-header-input"
-          type="text"
+          type="search"
           inputMode="text"
           autoComplete="off"
           enterKeyHint="done"
@@ -226,7 +224,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
           className={`pick-header-mic ${isRecording ? 'recording' : ''}`}
           type="button"
           onClick={handleMicClick}
-          title={isRecording ? 'Detener grabacion' : 'Grabar voz'}
+          title={isRecording ? 'Detener voz' : 'Escuchar voz'}
         >
           <Mic size={20} />
         </button>
@@ -248,7 +246,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
                 <div className={`pick-list-item ${entry.item ? 'matched' : 'missing'}`} key={entry.id}>
                   <div>
                     <strong>{entry.item?.descripcion || entry.item?.sku || entry.text}</strong>
-                    <span>{entry.item ? `${entry.item.sku} - ${entry.item.ubicacion}` : 'Sin coincidencia'}</span>
+                    <span>{entry.item ? `${entry.item.sku || entry.item.skuBase} - ${entry.item.ubicacion}` : 'Sin coincidencia'}</span>
                   </div>
                   <button type="button" onClick={() => removePickEntry(entry.id)} aria-label="Quitar articulo">
                     <X size={16} />

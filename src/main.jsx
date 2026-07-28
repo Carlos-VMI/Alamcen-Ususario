@@ -473,13 +473,22 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div>
-          <h1>{warehouseMeta?.nombre || 'Almacen Operario'}</h1>
-          <p>
-            {warehouseMeta?.ubicacion ? `${warehouseMeta.ubicacion} - ` : ''}
-            {operator.nombre} - {roleLabel(operator.rol)}
-          </p>
-        </div>
+        <h1>{warehouseMeta?.nombre || 'Almacén Madrid'}</h1>
+        <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
+          Salir
+        </button>
+        <StatusIndicator {...sync} onSyncClick={sync.forceSync} />
+        <div className="header-spacer" />
+        <button
+          className="pedido-button"
+          type="button"
+          onClick={handlePedido}
+          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending}
+          title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
+        >
+          {pedidoSending ? 'Enviando' : 'Pedido'}
+          {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
+        </button>
         <div className="app-header-actions">
           <div className="view-toggle" role="group" aria-label="Vista">
             <button
@@ -504,27 +513,14 @@ function App() {
               Pick
             </button>
           </div>
+        </div>
+        <div className="header-search-spacer" />
           {viewMode === 'pick' ? (
             <PickToLightControls
               config={config}
               onLightStatesChange={setPickLightStates}
             />
           ) : null}
-          <button
-            className="pedido-button"
-            type="button"
-            onClick={handlePedido}
-            disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending}
-            title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
-          >
-            {pedidoSending ? 'Enviando' : 'Pedido'}
-            {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
-          </button>
-          <StatusIndicator {...sync} onSyncClick={sync.forceSync} />
-          <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
-            Salir
-          </button>
-        </div>
       </header>
 
       <main>

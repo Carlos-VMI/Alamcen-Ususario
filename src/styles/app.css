@@ -73,8 +73,8 @@ button {
   background: var(--header);
   color: #fff;
   display: flex;
-  gap: 16px;
-  justify-content: space-between;
+  gap: 10px;
+  justify-content: flex-start;
   min-height: 72px;
   padding: 14px 18px;
   position: sticky;
@@ -85,10 +85,12 @@ button {
 
 .app-header h1 {
   cursor: default;
+  flex: 0 0 auto;
   font-size: 20px;
   line-height: 1.1;
   margin: 0;
   user-select: none;
+  white-space: nowrap;
 }
 
 .app-header p {
@@ -106,7 +108,17 @@ main {
 .app-header-actions {
   align-items: center;
   display: flex;
-  gap: 10px;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.header-spacer {
+  flex: 0 0 18px;
+}
+
+.header-search-spacer {
+  flex: 1 1 auto;
+  min-width: 16px;
 }
 
 .view-toggle {
@@ -131,8 +143,9 @@ main {
 }
 
 .pick-header-tools {
-  max-width: min(46vw, 680px);
-  min-width: 360px;
+  flex: 0 1 720px;
+  max-width: min(48vw, 720px);
+  min-width: 430px;
   position: relative;
 }
 
@@ -359,11 +372,11 @@ main {
   border: 0;
   border-radius: 999px;
   display: inline-flex;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   gap: 8px;
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 11px;
   white-space: nowrap;
 }
 
@@ -555,7 +568,7 @@ main {
 .overview-cell.pick-blinking,
 .overview-cubeta.pick-blinking {
   animation: pickBlink 0.65s ease-in-out infinite;
-  background: #facc15;
+  background: #ffb6c1;
 }
 
 .overview-cell.pick-solid,
@@ -705,6 +718,17 @@ main {
     inset 0 0 0 3px rgba(255, 255, 255, 0.85);
 }
 
+.sku-cell.pick-parent-blinking {
+  animation: pickBlink 0.65s ease-in-out infinite;
+  border-color: #d94683;
+}
+
+.sku-cell.pick-parent-solid {
+  background: #f0fdf4;
+  border-color: #15803d;
+  box-shadow: inset 0 0 0 3px rgba(21, 128, 61, 0.34);
+}
+
 .sku-cell.unassigned {
   background: #e5e7eb;
   border-color: #b8c0cc;
@@ -739,6 +763,10 @@ main {
   pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.item-card-head strong.empty-location {
+  color: #c9ced6;
 }
 
 .item-status-dot {
@@ -866,19 +894,6 @@ main {
   background: linear-gradient(180deg, #facc15, var(--yellow));
   border-color: rgba(113, 63, 18, 0.38);
   color: #713f12;
-}
-
-.cubeta-card.pick-blinking {
-  animation: pickBlink 0.65s ease-in-out infinite;
-  background: #facc15;
-  border-color: #a16207;
-  color: #713f12;
-}
-
-.cubeta-card.pick-solid {
-  background: linear-gradient(180deg, #24c47c, #15803d);
-  border-color: #0f6b32;
-  color: #fff;
 }
 
 .cubeta-card.unassigned {
@@ -1225,13 +1240,13 @@ main {
 @keyframes pickBlink {
   0%,
   100% {
-    background: #fef3c7;
-    box-shadow: inset 0 0 0 2px #facc15;
+    background: #ffe4ec;
+    box-shadow: inset 0 0 0 3px #ffb6c1;
   }
 
   50% {
-    background: #facc15;
-    box-shadow: inset 0 0 0 4px #a16207;
+    background: #ffb6c1;
+    box-shadow: inset 0 0 0 5px #d94683;
   }
 }
 

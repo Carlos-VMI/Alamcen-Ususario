@@ -1,5 +1,3 @@
-import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
-
 function formatSyncTime(value) {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
@@ -21,6 +19,7 @@ export function StatusIndicator({
 }) {
   const state = !online ? 'offline' : isSyncing ? 'syncing' : pendingCount > 0 ? 'pending' : 'synced';
   const lastSyncTime = formatSyncTime(lastSuccessfulSyncAt);
+  const label = online && lastSyncTime ? `Sync ${lastSyncTime}` : online ? 'Sync' : 'Offline';
 
   return (
     <button
@@ -30,13 +29,7 @@ export function StatusIndicator({
       disabled={!online || isSyncing}
       title={lastSyncError || 'Sincronizar ahora'}
     >
-      {!online ? <CloudOff size={18} /> : isSyncing ? <RefreshCw size={18} /> : <Cloud size={18} />}
-      <span>
-        {!online && 'Offline'}
-        {online && isSyncing && 'Sincronizando'}
-        {online && !isSyncing && pendingCount > 0 && `${pendingCount} pendiente${pendingCount === 1 ? '' : 's'}`}
-        {online && !isSyncing && pendingCount === 0 && (lastSyncTime ? `Ultima sincronizacion: ${lastSyncTime}` : 'Sincronizado')}
-      </span>
+      <span>{isSyncing ? 'Sync...' : pendingCount > 0 ? `${label} (${pendingCount})` : label}</span>
     </button>
   );
 }

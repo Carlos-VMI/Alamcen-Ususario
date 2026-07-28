@@ -13,6 +13,7 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
   const canReplenish = normalizedRole === 'repositor' || normalizedRole === 'administrador' || normalizedRole === 'admin';
   const locationLabel = balda.codigo_ubicacion || `M?E${balda.estante}C${balda.posicion}`;
   const itemSku = balda.sku || balda.sku_base || locationLabel;
+  const parentPickLightState = pickLightStates[balda.id] || 'off';
 
   const handleCubetaClick = async (cubeta) => {
     if (!cubeta.sku) return;
@@ -31,32 +32,33 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
     return (
       <article className={`sku-cell item-card ${hasArticle ? 'assigned' : 'unassigned'}`}>
         <div className="item-card-head">
-          <strong>{hasArticle ? itemSku : locationLabel}</strong>
+          <strong className={hasArticle ? '' : 'empty-location'}>{hasArticle ? itemSku : locationLabel}</strong>
           <span className={`item-status-dot ${hasArticle ? 'assigned' : 'unassigned'}`} aria-label={hasArticle ? 'Con material' : 'Libre'} />
         </div>
-        <div className="item-card-body">
-          <small>{balda.descripcion || 'Sin articulo configurado'}</small>
-          <em>Cap. {balda.capacidad || 0}</em>
-        </div>
+        {hasArticle ? (
+          <div className="item-card-body">
+            <small>{balda.descripcion}</small>
+            <em>Cap. {balda.capacidad || 0}</em>
+          </div>
+        ) : null}
       </article>
     );
   }
 
   return (
-    <article className={`sku-cell ${hasArticle ? 'assigned' : 'unassigned'} ${cubetas.length > 1 ? 'shared-sku' : ''} ${viewMode}`}>
+    <article className={`sku-cell ${hasArticle ? 'assigned' : 'unassigned'} ${cubetas.length > 1 ? 'shared-sku' : ''} pick-parent-${parentPickLightState} ${viewMode}`}>
       <div
         className="cubeta-grid"
         style={{ gridTemplateColumns: `repeat(${Math.max(1, cubetas.length)}, minmax(0, 1fr))` }}
       >
         {cubetas.map((cubeta, index) => {
           const currentState = estadosById.get(cubeta.id) || 'lleno';
-          const pickLightState = pickLightStates[cubeta.id] || 'off';
           const disabled = !cubeta.sku || (currentState === 'pedido' && !canReplenish);
           const suffix = cubeta.sufijo || String(index + 1).padStart(2, '0');
 
           return (
             <button
-              className={`cubeta-card ${currentState} pick-${pickLightState} ${cubeta.sku ? 'assigned' : 'unassigned'}`}
+              className={`cubeta-card ${currentState} ${cubeta.sku ? 'assigned' : 'unassigned'}`}
               key={cubeta.id}
               type="button"
               onClick={() => handleCubetaClick(cubeta)}
