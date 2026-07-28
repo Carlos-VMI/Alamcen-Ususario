@@ -505,22 +505,13 @@ function App() {
             >
               Items
             </button>
-            <button
-              className={viewMode === 'pick' ? 'active' : ''}
-              type="button"
-              onClick={() => setViewMode('pick')}
-            >
-              Pick
-            </button>
           </div>
         </div>
         <div className="header-search-spacer" />
-          {viewMode === 'pick' ? (
-            <PickToLightControls
-              config={config}
-              onLightStatesChange={setPickLightStates}
-            />
-          ) : null}
+        <PickToLightControls
+          config={config}
+          onLightStatesChange={setPickLightStates}
+        />
       </header>
 
       <main>
@@ -535,8 +526,8 @@ function App() {
             config={config}
             estados={estados}
             operatorRole={operator.rol}
-            viewMode={viewMode === 'pick' ? 'estado' : viewMode}
-            pickLightStates={viewMode === 'pick' ? pickLightStates : {}}
+            viewMode={viewMode}
+            pickLightStates={pickLightStates}
           />
         )}
       </main>
