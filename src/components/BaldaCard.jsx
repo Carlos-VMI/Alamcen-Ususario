@@ -6,7 +6,7 @@ function stateLabel(state) {
   return 'Lleno';
 }
 
-export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewMode = 'estado' }) {
+export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewMode = 'estado', pickLightStates = {} }) {
   const cubetas = balda.cubetas?.length ? balda.cubetas : [balda];
   const hasArticle = cubetas.some((cubeta) => Boolean(cubeta.sku));
   const normalizedRole = String(operatorRole || 'operario').toLowerCase();
@@ -50,12 +50,13 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
       >
         {cubetas.map((cubeta, index) => {
           const currentState = estadosById.get(cubeta.id) || 'lleno';
+          const pickLightState = pickLightStates[cubeta.id] || 'off';
           const disabled = !cubeta.sku || (currentState === 'pedido' && !canReplenish);
           const suffix = cubeta.sufijo || String(index + 1).padStart(2, '0');
 
           return (
             <button
-              className={`cubeta-card ${currentState} ${cubeta.sku ? 'assigned' : 'unassigned'}`}
+              className={`cubeta-card ${currentState} pick-${pickLightState} ${cubeta.sku ? 'assigned' : 'unassigned'}`}
               key={cubeta.id}
               type="button"
               onClick={() => handleCubetaClick(cubeta)}

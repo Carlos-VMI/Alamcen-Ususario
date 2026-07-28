@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { PickToLightView } from './components/PickToLightView';
+import { PickToLightControls } from './components/PickToLightControls';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
@@ -403,6 +403,7 @@ function App() {
   const [pendingAdminOperator, setPendingAdminOperator] = useState(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [viewMode, setViewMode] = useState('estado');
+  const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
@@ -503,6 +504,12 @@ function App() {
               Pick
             </button>
           </div>
+          {viewMode === 'pick' ? (
+            <PickToLightControls
+              config={config}
+              onLightStatesChange={setPickLightStates}
+            />
+          ) : null}
           <button
             className="pedido-button"
             type="button"
@@ -527,10 +534,14 @@ function App() {
             <h2>Cargando configuracion...</h2>
             <p>Descargando modulos, estantes y articulos desde Supabase.</p>
           </section>
-        ) : viewMode === 'pick' ? (
-          <PickToLightView />
         ) : (
-          <WarehouseView config={config} estados={estados} operatorRole={operator.rol} viewMode={viewMode} />
+          <WarehouseView
+            config={config}
+            estados={estados}
+            operatorRole={operator.rol}
+            viewMode={viewMode === 'pick' ? 'estado' : viewMode}
+            pickLightStates={viewMode === 'pick' ? pickLightStates : {}}
+          />
         )}
       </main>
 

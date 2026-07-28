@@ -10,20 +10,24 @@ function groupBy(items, getKey) {
   }, {});
 }
 
-function stateClassForShelf(shelf, estadosById) {
+function stateClassForShelf(shelf, estadosById, pickLightStates = {}) {
   const cubetas = shelf.cubetas?.length ? shelf.cubetas : [shelf];
   if (!cubetas.some((cubeta) => cubeta.sku)) return 'unassigned';
+  if (cubetas.some((cubeta) => pickLightStates[cubeta.id] === 'blinking')) return 'pick-blinking';
+  if (cubetas.some((cubeta) => pickLightStates[cubeta.id] === 'solid')) return 'pick-solid';
   if (cubetas.some((cubeta) => estadosById.get(cubeta.id) === 'vacio')) return 'vacio';
   if (cubetas.some((cubeta) => estadosById.get(cubeta.id) === 'pedido')) return 'pedido';
   return 'lleno';
 }
 
-function stateClassForCubeta(cubeta, estadosById) {
+function stateClassForCubeta(cubeta, estadosById, pickLightStates = {}) {
   if (!cubeta.sku) return 'unassigned';
+  if (pickLightStates[cubeta.id] === 'blinking') return 'pick-blinking';
+  if (pickLightStates[cubeta.id] === 'solid') return 'pick-solid';
   return estadosById.get(cubeta.id) || 'lleno';
 }
 
-function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode, compact = false }) {
+function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode, pickLightStates = {}, compact = false }) {
   const rows = groupBy(shelves, (row) => row.estante);
 
   if (compact) {
@@ -48,7 +52,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                   const cubetas = shelf.cubetas?.length ? shelf.cubetas : [shelf];
                   return (
                     <span
-                      className={`overview-cell ${stateClassForShelf(shelf, estadosById)}`}
+                      className={`overview-cell ${stateClassForShelf(shelf, estadosById, pickLightStates)}`}
                       key={shelf.id}
                     >
                       <span
@@ -57,7 +61,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                       >
                         {cubetas.map((cubeta, cubetaIndex) => (
                           <span
-                            className={`overview-cubeta ${stateClassForCubeta(cubeta, estadosById)}`}
+                            className={`overview-cubeta ${stateClassForCubeta(cubeta, estadosById, pickLightStates)}`}
                             key={cubeta.id || `${shelf.id}-${cubetaIndex}`}
                           />
                         ))}
@@ -101,6 +105,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                           estadosById={estadosById}
                           operatorRole={operatorRole}
                           viewMode={viewMode}
+                          pickLightStates={pickLightStates}
                         />
                       </div>
                     ))}
@@ -129,7 +134,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
   );
 }
 
-export function WarehouseView({ config, estados, operatorRole = 'operario', viewMode = 'estado' }) {
+export function WarehouseView({ config, estados, operatorRole = 'operario', viewMode = 'estado', pickLightStates = {} }) {
   const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado.estado])), [estados]);
   const moduleEntries = useMemo(() => (
     Object.entries(groupBy(config, (row) => row.modulo || 'Modulo 1'))
@@ -170,6 +175,7 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
             estadosById={estadosById}
             operatorRole={normalizedRole}
             viewMode={viewMode}
+            pickLightStates={pickLightStates}
           />
         ) : null}
       </div>
@@ -189,6 +195,7 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
               estadosById={estadosById}
               operatorRole={normalizedRole}
               viewMode={viewMode}
+              pickLightStates={pickLightStates}
               compact
             />
           </button>
