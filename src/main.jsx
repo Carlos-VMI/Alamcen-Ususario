@@ -447,52 +447,27 @@ function App() {
   useEffect(() => {
     if (!almacenId) return undefined;
 
-    console.log('⚡ Restaurando sincronización original con Supabase...');
+    console.log('⚡ Conectando escuchador maestro de Supabase...');
 
-    const applyRealtimeChange = async (table, payload) => {
-      try {
-        if (table === 'almacen_articulos') {
-          if (payload.eventType !== 'DELETE' && payload.new?.almacen_id !== almacenId) return;
-          await syncService.applyArticleRealtimeChange(almacenId, payload);
-          return;
-        }
-
-        if (table === 'almacen_modulos') {
-          if (payload.eventType !== 'DELETE' && payload.new?.almacen_id !== almacenId) return;
-          await syncService.applyModuleRealtimeChange(almacenId, payload);
-          return;
-        }
-
-        if (table === 'almacen_estantes') {
-          await syncService.applyShelfRealtimeChange(almacenId, payload);
-        }
-      } catch (error) {
-        console.error('Error aplicando cambio Realtime de Supabase', error);
-      }
+    const triggerUpdate = () => {
+      console.log('🔔 Cambio detectado desde Configuración. Recargando estantería...');
+      sync.forceSync();
+      supabaseSync.forceFullRefresh();
     };
 
     const channel = supabase
       .channel('sync-almacen-original')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'almacen_articulos' },
-        (payload) => applyRealtimeChange('almacen_articulos', payload)
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'almacen_modulos' },
-        (payload) => applyRealtimeChange('almacen_modulos', payload)
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'almacen_estantes' },
-        (payload) => applyRealtimeChange('almacen_estantes', payload)
-      )
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_articulos' }, triggerUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_modulos' }, triggerUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_estantes' }, triggerUpdate)
+      .subscribe((status) => {
+        console.log('📡 Estado de Supabase Realtime:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [almacenId]);
 
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
