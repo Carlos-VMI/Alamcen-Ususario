@@ -414,7 +414,6 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
-  const [pedidoNotice, setPedidoNotice] = useState('');
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const queuedPedidos = useLiveQuery(
@@ -460,7 +459,6 @@ function App() {
     if (viewMode !== 'estado' || pedidoSending || pendingPedidoCount > 0) return;
 
     setPedidoError('');
-    setPedidoNotice('');
     setPedidoSending(true);
     const rows = buildPedidoRows(config, estadosById);
 
@@ -474,7 +472,6 @@ function App() {
           operator,
           reason: 'offline'
         });
-        setPedidoNotice('Sin conexion: el pedido quedo guardado y se enviara automaticamente cuando vuelva internet.');
         return;
       }
 
@@ -484,14 +481,7 @@ function App() {
         operator,
         reason: 'manual'
       });
-      setPedidoNotice('Pedido guardado. Enviando y sincronizando estados...');
       await syncService.flushPendingQueue();
-      const remainingPedidos = await db.cola_sincronizacion.where('tipo').equals('pedido.email').count();
-      setPedidoNotice(
-        remainingPedidos > 0
-          ? 'No se pudo enviar ahora. El pedido quedo guardado y se enviara automaticamente cuando la conexion lo permita.'
-          : 'Pedido enviado. Las baldas se marcaron como Pedido.'
-      );
     } catch (error) {
       if (isNetworkFailure(error)) {
         await syncService.enqueuePedidoEmail({
@@ -500,7 +490,6 @@ function App() {
           operator,
           reason: 'network-error'
         });
-        setPedidoNotice('No se pudo conectar ahora. El pedido quedo guardado y se enviara automaticamente al recuperar internet.');
       } else {
         setPedidoError(error?.message || 'Error enviando pedido');
       }
@@ -568,11 +557,6 @@ function App() {
 
       <main>
         {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
-        {pedidoNotice || pendingPedidoCount > 0 ? (
-          <div className="top-notice">
-            {pedidoNotice || `${pendingPedidoCount} pedido pendiente de envio. Se enviara automaticamente cuando haya conexion.`}
-          </div>
-        ) : null}
         {sync.configLoading && config.length === 0 ? (
           <section className="empty-state">
             <h2>Cargando configuracion...</h2>

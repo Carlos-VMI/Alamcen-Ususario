@@ -9,6 +9,14 @@ function normalizeText(value) {
     .trim();
 }
 
+function compactText(value) {
+  return normalizeText(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function textTokens(value) {
+  return normalizeText(value).match(/[a-z0-9]+/g) || [];
+}
+
 function flattenInventory(config) {
   return config
     .map((balda) => {
@@ -45,6 +53,8 @@ function findInventoryItem(text, inventory) {
 function searchInventoryItems(text, inventory, limit = 8) {
   const query = normalizeText(text);
   if (!query) return [];
+  const queryCompact = compactText(query);
+  const queryTokens = textTokens(query);
 
   return inventory.filter((item) => {
     const candidates = [
@@ -60,12 +70,27 @@ function searchInventoryItems(text, inventory, limit = 8) {
         cubeta.descripcion,
         cubeta.codigoArticulo,
         cubeta.codigoCliente,
-        cubeta.ubicacion,
-        cubeta.sufijo
+        cubeta.ubicacion
       ])
     ].map(normalizeText).filter(Boolean);
 
-    return candidates.some((value) => value === query || value.includes(query) || query.includes(value));
+    return candidates.some((value) => {
+      const valueTokens = textTokens(value);
+      const valueCompact = compactText(value);
+      if (!valueCompact) return false;
+
+      if (/^\d+$/.test(queryCompact) && queryCompact.length > 1) {
+        return valueTokens.includes(queryCompact) || valueCompact.includes(queryCompact);
+      }
+
+      if (queryTokens.length > 1) {
+        return queryTokens.every((token) => valueTokens.includes(token)) || valueCompact.includes(queryCompact);
+      }
+
+      const token = queryTokens[0] || queryCompact;
+      if (!token) return false;
+      return valueTokens.some((valueToken) => valueToken.startsWith(token)) || valueCompact.startsWith(queryCompact);
+    });
   }).slice(0, limit);
 }
 

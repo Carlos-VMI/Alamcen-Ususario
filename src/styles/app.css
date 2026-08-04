@@ -111,6 +111,11 @@ main {
   display: flex;
   flex: 0 0 auto;
   gap: 8px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 11;
 }
 
 .header-spacer {
@@ -1343,6 +1348,10 @@ main {
   .app-header-actions {
     align-items: flex-start;
     flex-wrap: wrap;
+    left: auto;
+    position: static;
+    top: auto;
+    transform: none;
   }
 
   .pick-header-tools {
