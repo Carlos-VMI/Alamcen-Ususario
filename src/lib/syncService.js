@@ -365,6 +365,60 @@ export const syncService = {
     return this.rebuildShelfConfigFromLocalCache(almacenId);
   },
 
+  async applyModuleRealtimeChange(almacenId, payload) {
+    const eventType = payload.eventType;
+    const nextRow = payload.new;
+    const oldRow = payload.old;
+
+    if (eventType === 'DELETE') {
+      if (oldRow?.id) {
+        await db.transaction('rw', db.almacen_modulos, db.almacen_estantes, async () => {
+          await db.almacen_modulos.delete(oldRow.id);
+          await db.almacen_estantes.where('modulo_id').equals(oldRow.id).delete();
+        });
+      }
+      return this.rebuildShelfConfigFromLocalCache(almacenId);
+    }
+
+    if (nextRow?.almacen_id && nextRow.almacen_id !== almacenId) {
+      return db.estanterias_config.toArray();
+    }
+
+    if (nextRow?.id) {
+      await db.almacen_modulos.put(nextRow);
+      if (nextRow.updated_at) {
+        await setSyncMetadata(configSyncKey(almacenId), nextRow.updated_at);
+      }
+    }
+
+    return this.rebuildShelfConfigFromLocalCache(almacenId);
+  },
+
+  async applyShelfRealtimeChange(almacenId, payload) {
+    const eventType = payload.eventType;
+    const nextRow = payload.new;
+    const oldRow = payload.old;
+
+    if (eventType === 'DELETE') {
+      if (oldRow?.id) await db.almacen_estantes.delete(oldRow.id);
+      return this.rebuildShelfConfigFromLocalCache(almacenId);
+    }
+
+    if (nextRow?.modulo_id) {
+      const module = await db.almacen_modulos.get(nextRow.modulo_id);
+      if (!module || module.almacen_id !== almacenId) {
+        return db.estanterias_config.toArray();
+      }
+
+      await db.almacen_estantes.put(nextRow);
+      if (nextRow.updated_at) {
+        await setSyncMetadata(configSyncKey(almacenId), nextRow.updated_at);
+      }
+    }
+
+    return this.rebuildShelfConfigFromLocalCache(almacenId);
+  },
+
   async downloadRemoteConfig(almacenId, { fullRefresh = false } = {}) {
     const lastSyncAt = fullRefresh ? null : await getSyncMetadata(configSyncKey(almacenId));
     const syncStartedAt = nowIso();

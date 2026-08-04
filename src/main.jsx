@@ -5,6 +5,7 @@ import { PickToLightControls } from './components/PickToLightControls';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
+import { useSupabaseSync } from './hooks/useSupabaseSync';
 import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
 import { buildPedidoRows } from './lib/orderService';
@@ -422,6 +423,18 @@ function App() {
     []
   );
   const sync = useSyncManager(almacenId);
+  const supabaseSync = useSupabaseSync(almacenId);
+  const combinedSync = useMemo(() => ({
+    ...sync,
+    isSyncing: sync.isSyncing || supabaseSync.isInitializing || supabaseSync.isRealtimeSyncing,
+    lastSyncError: sync.lastSyncError || supabaseSync.lastError,
+    lastSuccessfulSyncAt: supabaseSync.lastSyncedAt || sync.lastSuccessfulSyncAt,
+    configLoading: sync.configLoading || supabaseSync.isInitializing,
+    forceSync: async () => {
+      await sync.forceSync();
+      await supabaseSync.forceFullRefresh();
+    }
+  }), [supabaseSync, sync]);
   const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado.estado])), [estados]);
   const pendingOrderCount = useMemo(() => (
     config
@@ -465,7 +478,7 @@ function App() {
     try {
       if (!rows.length) return;
 
-      if (!sync.online) {
+      if (!combinedSync.online) {
         await syncService.enqueuePedidoEmail({
           rows,
           warehouse: warehouseMeta,
@@ -518,7 +531,7 @@ function App() {
         <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
           Salir
         </button>
-        <StatusIndicator {...sync} onSyncClick={sync.forceSync} />
+        <StatusIndicator {...combinedSync} onSyncClick={combinedSync.forceSync} />
         <div className="header-spacer" />
         <button
           className="pedido-button"
@@ -557,7 +570,7 @@ function App() {
 
       <main>
         {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
-        {sync.configLoading && config.length === 0 ? (
+        {combinedSync.configLoading && config.length === 0 ? (
           <section className="empty-state">
             <h2>Cargando configuracion...</h2>
             <p>Descargando modulos, estantes y articulos desde Supabase.</p>

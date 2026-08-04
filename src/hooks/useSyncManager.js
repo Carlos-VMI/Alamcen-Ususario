@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '../lib/db';
 import { SYNC_INTERVAL_MS, syncService } from '../lib/syncService';
-import { supabase } from '../lib/supabaseClient';
 import { useLiveQuery } from './useLiveQuery';
 import { useOnlineStatus } from './useOnlineStatus';
 
@@ -64,71 +63,6 @@ export function useSyncManager(almacenId) {
       setAutoSyncError(error?.message || 'Error limpiando cola local');
     });
   }, [almacenId]);
-
-  useEffect(() => {
-    if (!almacenId || !online) return undefined;
-
-    const channel = supabase
-      .channel(`operario-config-${almacenId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'almacen_articulos',
-          filter: `almacen_id=eq.${almacenId}`
-        },
-        (payload) => {
-          syncService.applyArticleRealtimeChange(almacenId, payload).catch((error) => {
-            setAutoSyncError(error?.message || 'Error actualizando articulo realtime');
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'almacen_modulos',
-          filter: `almacen_id=eq.${almacenId}`
-        },
-        () => {
-          syncService.downloadRemoteConfig(almacenId, { fullRefresh: true })
-            .then((rows) => {
-              queryClient.setQueryData(['remote-config', almacenId], rows);
-              setLastSuccessfulSyncAt(new Date());
-              setAutoSyncError(null);
-            })
-            .catch((error) => {
-              setAutoSyncError(error?.message || 'Error actualizando modulos realtime');
-            });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'almacen_estantes'
-        },
-        () => {
-          syncService.downloadRemoteConfig(almacenId, { fullRefresh: true })
-            .then((rows) => {
-              queryClient.setQueryData(['remote-config', almacenId], rows);
-              setLastSuccessfulSyncAt(new Date());
-              setAutoSyncError(null);
-            })
-            .catch((error) => {
-              setAutoSyncError(error?.message || 'Error actualizando estantes realtime');
-            });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [almacenId, online, queryClient]);
 
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;
