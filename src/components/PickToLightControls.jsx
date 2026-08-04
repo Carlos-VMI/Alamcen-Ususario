@@ -303,8 +303,8 @@ export function PickToLightControls({ config, onLightStatesChange }) {
           onKeyDown={(event) => {
             if (event.key === 'Enter') addPickEntry(query, suggestions[0] || null);
           }}
-          placeholder="SKU, codigo o descripcion"
-          aria-label="Buscar material en estanteria"
+          placeholder="SKU, artículo o descripción"
+          aria-label="Buscar material en estantería"
         />
         <button
           className={`pick-header-mic ${isRecording ? 'recording' : ''}`}

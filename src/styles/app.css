@@ -150,9 +150,9 @@ main {
 }
 
 .pick-header-tools {
-  flex: 0 1 504px;
-  max-width: min(34vw, 504px);
-  min-width: 360px;
+  flex: 0 1 540px;
+  max-width: min(37vw, 540px);
+  min-width: 390px;
   position: relative;
 }
 
@@ -170,7 +170,7 @@ main {
   border-radius: 7px;
   color: #111827;
   font: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   height: 38px;
   outline: none;
@@ -565,10 +565,12 @@ main {
 
 .overview-cell {
   background: #e5e7eb;
+  border: 2px solid transparent;
   border-radius: 2px;
   display: block;
   min-height: 12px;
   overflow: hidden;
+  position: relative;
 }
 
 .overview-cubeta-grid {
@@ -604,7 +606,26 @@ main {
 }
 
 .overview-cell.pick-solid {
+  border-color: #facc15;
   box-shadow: inset 0 0 0 2px #facc15;
+}
+
+.overview-cell.pick-blinking::after,
+.overview-cell.pick-solid::after {
+  border-radius: 2px;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.overview-cell.pick-blinking::after {
+  animation: pickShelfOverlayBlink 0.65s ease-in-out infinite;
+}
+
+.overview-cell.pick-solid::after {
+  box-shadow: inset 0 0 0 3px #facc15;
 }
 
 .overview-cell.unassigned,
@@ -757,6 +778,29 @@ main {
 .sku-cell.pick-parent-solid {
   border-color: #facc15;
   box-shadow: inset 0 0 0 4px #facc15;
+}
+
+.sku-cell.pick-parent-blinking::after,
+.sku-cell.pick-parent-solid::after {
+  border-radius: 4px;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+}
+
+.sku-cell.pick-parent-blinking::after {
+  animation: pickShelfOverlayBlink 0.65s ease-in-out infinite;
+}
+
+.sku-cell.pick-parent-solid::after {
+  box-shadow: inset 0 0 0 6px #facc15;
+}
+
+.sku-cell.assigned.shared-sku.pick-parent-blinking,
+.sku-cell.assigned.shared-sku.pick-parent-solid {
+  border-color: #facc15;
 }
 
 .sku-cell.unassigned {
@@ -1360,6 +1404,17 @@ main {
   50% {
     border-color: #eab308;
     box-shadow: inset 0 0 0 6px #facc15;
+  }
+}
+
+@keyframes pickShelfOverlayBlink {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 5px #ffeb3b;
+  }
+
+  50% {
+    box-shadow: inset 0 0 0 7px #facc15;
   }
 }
 
