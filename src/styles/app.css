@@ -611,29 +611,25 @@ main {
 
 .overview-cell.pick-blinking {
   animation: pickShelfBorderBlink 0.65s ease-in-out infinite;
+  border-color: #fff200;
 }
 
 .overview-cell.pick-solid {
-  border-color: #facc15;
-  box-shadow: inset 0 0 0 2px #facc15;
+  border-color: #fff200;
+  box-shadow: inset 0 0 0 3px #fff200;
 }
 
 .overview-cell.pick-blinking::after,
 .overview-cell.pick-solid::after {
-  border-radius: 2px;
-  content: "";
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: 2;
+  display: none;
 }
 
 .overview-cell.pick-blinking::after {
-  animation: pickShelfOverlayBlink 0.65s ease-in-out infinite;
+  animation: none;
 }
 
 .overview-cell.pick-solid::after {
-  box-shadow: inset 0 0 0 3px #facc15;
+  box-shadow: none;
 }
 
 .overview-cell.unassigned,
@@ -780,35 +776,30 @@ main {
 
 .sku-cell.pick-parent-blinking {
   animation: pickShelfBorderBlink 0.65s ease-in-out infinite;
-  border-color: #facc15;
+  border-color: #fff200;
 }
 
 .sku-cell.pick-parent-solid {
-  border-color: #facc15;
-  box-shadow: inset 0 0 0 4px #facc15;
+  border-color: #fff200;
+  box-shadow: inset 0 0 0 5px #fff200;
 }
 
 .sku-cell.pick-parent-blinking::after,
 .sku-cell.pick-parent-solid::after {
-  border-radius: 4px;
-  content: "";
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: 4;
+  display: none;
 }
 
 .sku-cell.pick-parent-blinking::after {
-  animation: pickShelfOverlayBlink 0.65s ease-in-out infinite;
+  animation: none;
 }
 
 .sku-cell.pick-parent-solid::after {
-  box-shadow: inset 0 0 0 6px #facc15;
+  box-shadow: none;
 }
 
 .sku-cell.assigned.shared-sku.pick-parent-blinking,
 .sku-cell.assigned.shared-sku.pick-parent-solid {
-  border-color: #facc15;
+  border-color: #fff200;
 }
 
 .sku-cell.unassigned {
@@ -1405,13 +1396,13 @@ main {
 @keyframes pickShelfBorderBlink {
   0%,
   100% {
-    border-color: #ffeb3b;
-    box-shadow: inset 0 0 0 4px #ffeb3b;
+    border-color: #fff200;
+    box-shadow: inset 0 0 0 4px #fff200;
   }
 
   50% {
-    border-color: #eab308;
-    box-shadow: inset 0 0 0 6px #facc15;
+    border-color: #ffd000;
+    box-shadow: inset 0 0 0 6px #ffd000;
   }
 }
 
