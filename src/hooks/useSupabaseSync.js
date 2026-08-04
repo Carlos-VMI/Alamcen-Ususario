@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { db } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
 import { syncService } from '../lib/syncService';
 import { useOnlineStatus } from './useOnlineStatus';
@@ -51,27 +50,14 @@ export function useSupabaseSync(almacenId) {
   useEffect(() => {
     if (!almacenId || !online) return undefined;
 
-    const applyRealtimePayload = async (table, payload) => {
+    const applySyncSignal = async () => {
       setIsRealtimeSyncing(true);
       setLastError(null);
       try {
-        if (table === 'almacen_articulos') {
-          await syncService.applyArticleRealtimeChange(almacenId, payload);
-        } else if (table === 'almacen_modulos') {
-          await syncService.applyModuleRealtimeChange(almacenId, payload);
-        } else if (table === 'almacen_estantes') {
-          const moduleId = payload.new?.modulo_id || payload.old?.modulo_id;
-          const module = moduleId ? await db.almacen_modulos.get(moduleId) : null;
-
-          if (payload.eventType !== 'DELETE' && (!module || module.almacen_id !== almacenId)) {
-            await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
-          } else {
-            await syncService.applyShelfRealtimeChange(almacenId, payload);
-          }
-        }
+        await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
         setLastSyncedAt(new Date());
       } catch (error) {
-        setLastError(error?.message || 'Error aplicando cambio realtime');
+        setLastError(error?.message || 'Error aplicando señal de sincronización');
       } finally {
         setIsRealtimeSyncing(false);
       }
@@ -82,31 +68,22 @@ export function useSupabaseSync(almacenId) {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
-          table: 'almacen_articulos',
+          table: 'almacen_sync',
           filter: `almacen_id=eq.${almacenId}`
         },
-        (payload) => applyRealtimePayload('almacen_articulos', payload)
+        applySyncSignal
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
-          table: 'almacen_modulos',
+          table: 'almacen_sync',
           filter: `almacen_id=eq.${almacenId}`
         },
-        (payload) => applyRealtimePayload('almacen_modulos', payload)
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'almacen_estantes'
-        },
-        (payload) => applyRealtimePayload('almacen_estantes', payload)
+        applySyncSignal
       )
       .subscribe();
 
