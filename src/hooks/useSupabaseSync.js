@@ -78,7 +78,7 @@ export function useSupabaseSync(almacenId) {
     };
 
     const channel = supabase
-      .channel(`public:cambios:${almacenId}`)
+      .channel('public:cambios')
       .on(
         'postgres_changes',
         {
