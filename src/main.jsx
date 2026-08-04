@@ -7,7 +7,7 @@ import { WarehouseView } from './components/WarehouseView';
 import { useLiveQuery } from './hooks/useLiveQuery';
 import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
-import { buildPedidoRows, sendPedidoEmail } from './lib/orderService';
+import { buildPedidoRows } from './lib/orderService';
 import { syncService } from './lib/syncService';
 import { supabase } from './lib/supabaseClient';
 import './styles/app.css';
@@ -15,6 +15,14 @@ import './styles/app.css';
 const ACTIVE_WAREHOUSE_KEY = 'almacen_id_activo';
 const ACTIVE_WAREHOUSE_META_KEY = 'almacen_activo_meta';
 const ACTIVE_OPERATOR_KEY = 'almacen_operario_activo';
+
+function isNetworkFailure(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('failed to fetch')
+    || message.includes('networkerror')
+    || message.includes('load failed')
+    || message.includes('network request failed');
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -406,8 +414,14 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
+  const [pedidoNotice, setPedidoNotice] = useState('');
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
+  const queuedPedidos = useLiveQuery(
+    () => db.cola_sincronizacion.where('tipo').equals('pedido.email').toArray(),
+    [],
+    []
+  );
   const sync = useSyncManager(almacenId);
   const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado.estado])), [estados]);
   const pendingOrderCount = useMemo(() => (
@@ -416,6 +430,7 @@ function App() {
       .filter((cubeta) => cubeta.sku && estadosById.get(cubeta.id) === 'vacio')
       .length
   ), [config, estadosById]);
+  const pendingPedidoCount = queuedPedidos.length;
 
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
     if (needsWarehouseSelection) {
@@ -442,16 +457,53 @@ function App() {
   };
 
   const handlePedido = async () => {
-    if (viewMode !== 'estado' || pedidoSending) return;
+    if (viewMode !== 'estado' || pedidoSending || pendingPedidoCount > 0) return;
 
     setPedidoError('');
+    setPedidoNotice('');
     setPedidoSending(true);
+    const rows = buildPedidoRows(config, estadosById);
+
     try {
-      const rows = buildPedidoRows(config, estadosById);
-      await sendPedidoEmail({ rows, warehouse: warehouseMeta, operator });
-      await syncService.markEmptyShelvesAsOrdered(config, estadosById);
+      if (!rows.length) return;
+
+      if (!sync.online) {
+        await syncService.enqueuePedidoEmail({
+          rows,
+          warehouse: warehouseMeta,
+          operator,
+          reason: 'offline'
+        });
+        setPedidoNotice('Sin conexion: el pedido quedo guardado y se enviara automaticamente cuando vuelva internet.');
+        return;
+      }
+
+      await syncService.enqueuePedidoEmail({
+        rows,
+        warehouse: warehouseMeta,
+        operator,
+        reason: 'manual'
+      });
+      setPedidoNotice('Pedido guardado. Enviando y sincronizando estados...');
+      await syncService.flushPendingQueue();
+      const remainingPedidos = await db.cola_sincronizacion.where('tipo').equals('pedido.email').count();
+      setPedidoNotice(
+        remainingPedidos > 0
+          ? 'No se pudo enviar ahora. El pedido quedo guardado y se enviara automaticamente cuando la conexion lo permita.'
+          : 'Pedido enviado. Las baldas se marcaron como Pedido.'
+      );
     } catch (error) {
-      setPedidoError(error?.message || 'Error enviando pedido');
+      if (isNetworkFailure(error)) {
+        await syncService.enqueuePedidoEmail({
+          rows,
+          warehouse: warehouseMeta,
+          operator,
+          reason: 'network-error'
+        });
+        setPedidoNotice('No se pudo conectar ahora. El pedido quedo guardado y se enviara automaticamente al recuperar internet.');
+      } else {
+        setPedidoError(error?.message || 'Error enviando pedido');
+      }
     } finally {
       setPedidoSending(false);
     }
@@ -483,11 +535,11 @@ function App() {
           className="pedido-button"
           type="button"
           onClick={handlePedido}
-          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending}
+          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending || pendingPedidoCount > 0}
           title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
         >
-          {pedidoSending ? 'Enviando' : 'Pedido'}
-          {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
+          {pedidoSending ? 'Enviando' : pendingPedidoCount > 0 ? 'Pendiente' : 'Pedido'}
+          {pendingPedidoCount > 0 ? <span>{pendingPedidoCount}</span> : pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
         </button>
         <div className="app-header-actions">
           <div className="view-toggle" role="group" aria-label="Vista">
@@ -516,6 +568,11 @@ function App() {
 
       <main>
         {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
+        {pedidoNotice || pendingPedidoCount > 0 ? (
+          <div className="top-notice">
+            {pedidoNotice || `${pendingPedidoCount} pedido pendiente de envio. Se enviara automaticamente cuando haya conexion.`}
+          </div>
+        ) : null}
         {sync.configLoading && config.length === 0 ? (
           <section className="empty-state">
             <h2>Cargando configuracion...</h2>

@@ -493,7 +493,8 @@ main {
   width: 100%;
 }
 
-.top-error {
+.top-error,
+.top-notice {
   background: var(--red-soft);
   border: 1px solid rgba(180, 35, 24, 0.22);
   border-radius: 8px;
@@ -502,6 +503,12 @@ main {
   font-weight: 800;
   margin-bottom: 12px;
   padding: 10px 12px;
+}
+
+.top-notice {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .overview-module.active {
@@ -749,6 +756,12 @@ main {
   min-height: 78px;
 }
 
+.item-card.assigned {
+  background: #f3fcf6;
+  border-color: #86d9a4;
+  box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.12);
+}
+
 .item-card-head {
   align-items: center;
   display: flex;
@@ -789,7 +802,7 @@ main {
 .item-card-body {
   align-content: center;
   display: grid;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -798,7 +811,6 @@ main {
 .item-card-body em {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .item-card-body strong {
@@ -807,16 +819,23 @@ main {
 }
 
 .item-card-body small {
-  color: #475467;
-  font-size: 11px;
-  font-weight: 700;
+  color: #263849;
+  display: -webkit-box;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.18;
+  min-height: 30px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
 }
 
 .item-card-body em {
   color: #667085;
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .sku-cell-head strong {
@@ -1053,6 +1072,53 @@ main {
 .pick-list-items {
   display: grid;
   gap: 8px;
+}
+
+.pick-suggestion-list {
+  border-bottom: 1px solid #e5e7eb;
+  display: grid;
+  gap: 7px;
+  margin-bottom: 9px;
+  padding-bottom: 9px;
+}
+
+.pick-suggestion-item {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #d8dcdf;
+  border-left: 5px solid #2f5e94;
+  border-radius: 7px;
+  color: #111827;
+  display: grid;
+  gap: 3px;
+  justify-items: start;
+  min-height: 50px;
+  padding: 8px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.pick-suggestion-item:active {
+  background: #eff6ff;
+}
+
+.pick-suggestion-item strong,
+.pick-suggestion-item span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-suggestion-item strong {
+  font-size: 14px;
+}
+
+.pick-suggestion-item span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .pick-list-item {

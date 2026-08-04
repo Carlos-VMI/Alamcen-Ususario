@@ -39,7 +39,14 @@ function findInventoryItem(text, inventory) {
   const query = normalizeText(text);
   if (!query) return null;
 
-  return inventory.find((item) => {
+  return searchInventoryItems(text, inventory, 1)[0] ?? null;
+}
+
+function searchInventoryItems(text, inventory, limit = 8) {
+  const query = normalizeText(text);
+  if (!query) return [];
+
+  return inventory.filter((item) => {
     const candidates = [
       item.sku,
       item.skuBase,
@@ -59,7 +66,15 @@ function findInventoryItem(text, inventory) {
     ].map(normalizeText).filter(Boolean);
 
     return candidates.some((value) => value === query || value.includes(query) || query.includes(value));
-  }) ?? null;
+  }).slice(0, limit);
+}
+
+function formatItemMeta(item) {
+  if (!item) return 'Sin coincidencia';
+  const sku = item.sku || item.skuBase || '';
+  const ubicacion = item.ubicacion || '';
+  if (sku && ubicacion && normalizeText(sku) !== normalizeText(ubicacion)) return `${sku} - ${ubicacion}`;
+  return sku || ubicacion || 'Articulo encontrado';
 }
 
 export function PickToLightControls({ config, onLightStatesChange }) {
@@ -75,9 +90,12 @@ export function PickToLightControls({ config, onLightStatesChange }) {
   const matches = useMemo(() => (
     pickList.map((entry) => ({
       ...entry,
-      item: findInventoryItem(entry.text, inventory)
+      item: entry.itemId
+        ? inventory.find((item) => item.id === entry.itemId) ?? findInventoryItem(entry.text, inventory)
+        : findInventoryItem(entry.text, inventory)
     }))
   ), [inventory, pickList]);
+  const suggestions = useMemo(() => searchInventoryItems(query, inventory, 8), [inventory, query]);
 
   useEffect(() => {
     onLightStatesChange(lightStates);
@@ -89,15 +107,16 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     onLightStatesChange({});
   }, [onLightStatesChange]);
 
-  const addPickEntry = (rawText) => {
-    const text = String(rawText || '').trim();
+  const addPickEntry = (rawText, item = null) => {
+    const text = String(rawText || item?.descripcion || item?.sku || item?.skuBase || item?.ubicacion || '').trim();
     if (!text) return;
 
     setPickList((current) => [
       ...current,
       {
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        text
+        text,
+        itemId: item?.id || null
       }
     ]);
     setQuery('');
@@ -109,15 +128,27 @@ export function PickToLightControls({ config, onLightStatesChange }) {
   };
 
   const executeSearch = () => {
+    const selectedSuggestion = suggestions[0] || null;
     const nextList = query.trim()
-      ? [...pickList, { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, text: query.trim() }]
+      ? [
+        ...pickList,
+        {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          text: query.trim(),
+          itemId: selectedSuggestion?.id || null
+        }
+      ]
       : pickList;
 
     setPickList(nextList);
     setQuery('');
 
     const foundItems = nextList
-      .map((entry) => findInventoryItem(entry.text, inventory))
+      .map((entry) => (
+        entry.itemId
+          ? inventory.find((item) => item.id === entry.itemId) ?? findInventoryItem(entry.text, inventory)
+          : findInventoryItem(entry.text, inventory)
+      ))
       .filter(Boolean);
 
     if (!foundItems.length) {
@@ -201,7 +232,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     startRecognition();
   };
 
-  const hasPopover = pickList.length > 0 || message;
+  const hasPopover = suggestions.length > 0 || pickList.length > 0 || message;
 
   return (
     <div className="pick-header-tools">
@@ -215,7 +246,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') addPickEntry(query);
+            if (event.key === 'Enter') addPickEntry(query, suggestions[0] || null);
           }}
           placeholder="SKU, codigo o descripcion"
           aria-label="Buscar material en estanteria"
@@ -240,13 +271,28 @@ export function PickToLightControls({ config, onLightStatesChange }) {
 
       {hasPopover ? (
         <div className="pick-header-popover">
+          {suggestions.length ? (
+            <div className="pick-suggestion-list">
+              {suggestions.map((item) => (
+                <button
+                  className="pick-suggestion-item"
+                  key={item.id}
+                  type="button"
+                  onClick={() => addPickEntry(query || item.descripcion || item.sku, item)}
+                >
+                  <strong>{item.descripcion || item.sku || item.skuBase}</strong>
+                  <span>{formatItemMeta(item)}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
           {pickList.length ? (
             <div className="pick-list-items">
               {matches.map((entry) => (
                 <div className={`pick-list-item ${entry.item ? 'matched' : 'missing'}`} key={entry.id}>
                   <div>
                     <strong>{entry.item?.descripcion || entry.item?.sku || entry.text}</strong>
-                    <span>{entry.item ? `${entry.item.sku || entry.item.skuBase} - ${entry.item.ubicacion}` : 'Sin coincidencia'}</span>
+                    <span>{formatItemMeta(entry.item)}</span>
                   </div>
                   <button type="button" onClick={() => removePickEntry(entry.id)} aria-label="Quitar articulo">
                     <X size={16} />

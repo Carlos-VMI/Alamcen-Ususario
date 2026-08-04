@@ -8,6 +8,7 @@ import {
   setSyncMetadata,
   upsertShelfStates
 } from './db';
+import { sendPedidoEmail } from './orderService';
 import { supabase } from './supabaseClient';
 
 export const SYNC_INTERVAL_MS = 15000;
@@ -504,6 +505,24 @@ export const syncService = {
     return rows.length;
   },
 
+  async enqueuePedidoEmail({ rows, warehouse, operator, reason = 'offline' }) {
+    if (!rows.length) return null;
+
+    const createdAt = nowIso();
+    return this.enqueue({
+      tipo: 'pedido.email',
+      entity_id: `pedido:${warehouse?.id || 'almacen'}:${createdAt}`,
+      created_at: createdAt,
+      payload: {
+        rows,
+        warehouse,
+        operator,
+        reason,
+        created_at: createdAt
+      }
+    });
+  },
+
   async getCurrentOperatorRole(almacenId) {
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -739,6 +758,27 @@ export const syncService = {
       );
 
       if (error) throw error;
+      return;
+    }
+
+    if (item.tipo === 'pedido.email') {
+      const payload = item.payload || {};
+      await sendPedidoEmail({
+        rows: payload.rows || [],
+        warehouse: payload.warehouse,
+        operator: payload.operator
+      });
+
+      const orderedRows = (payload.rows || [])
+        .filter((row) => row.id_balda)
+        .map((row) => ({
+          id_balda: row.id_balda,
+          estado: SHELF_STATES.ORDERED
+        }));
+
+      if (orderedRows.length) {
+        await this.updateManyShelfStates(orderedRows);
+      }
       return;
     }
 
