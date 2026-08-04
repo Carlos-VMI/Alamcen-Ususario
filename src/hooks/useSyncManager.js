@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { SYNC_INTERVAL_MS, syncService } from '../lib/syncService';
-import { useLiveQuery } from './useLiveQuery';
 import { useOnlineStatus } from './useOnlineStatus';
 
 const CONFIG_POLL_INTERVAL_MS = 10000;

@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { PickToLightControls } from './components/PickToLightControls';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
-import { useLiveQuery } from './hooks/useLiveQuery';
 import { useSupabaseSync } from './hooks/useSupabaseSync';
 import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
