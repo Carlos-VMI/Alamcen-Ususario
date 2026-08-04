@@ -827,6 +827,14 @@ main {
 .sku-cell.assigned.shared-sku.pick-parent-solid {
   background: #ffd000;
   border-color: #ffd000;
+  box-shadow:
+    inset 0 0 0 10px #ffd000,
+    inset 0 0 22px rgba(255, 208, 0, 0.58);
+}
+
+.sku-cell.assigned.shared-sku.pick-parent-solid::after {
+  border-color: #ffd000;
+  inset: -1px;
 }
 
 .sku-cell.unassigned {
