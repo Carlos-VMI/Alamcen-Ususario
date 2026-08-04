@@ -552,9 +552,9 @@ main {
 .overview-module-grid {
   display: grid;
   gap: 3px;
-  margin-left: -25%;
-  margin-right: -25%;
-  width: 150%;
+  margin-left: -55%;
+  margin-right: -55%;
+  width: 210%;
 }
 
 .overview-row {
@@ -595,12 +595,15 @@ main {
   background: var(--green);
 }
 
-.overview-cell.vacio,
+.overview-cell.assigned {
+  background: #f8fafc;
+  border-color: rgba(47, 94, 148, 0.58);
+}
+
 .overview-cubeta.vacio {
   background: var(--red);
 }
 
-.overview-cell.pedido,
 .overview-cubeta.pedido {
   background: var(--order);
 }
