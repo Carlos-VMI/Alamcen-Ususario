@@ -415,6 +415,13 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
+  console.log('[App] render inicial/actual', {
+    almacenId,
+    hasOperator: Boolean(operator),
+    warehouseMetaId: warehouseMeta?.id || null,
+    supabaseReady: Boolean(supabase),
+    syncServiceReady: Boolean(syncService)
+  });
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const queuedPedidos = useLiveQuery(
@@ -445,7 +452,18 @@ function App() {
   const pendingPedidoCount = queuedPedidos.length;
 
   useEffect(() => {
-    if (!almacenId) return undefined;
+    console.log('[Realtime useEffect] entrada', {
+      almacenId,
+      hasOperator: Boolean(operator),
+      warehouseMetaId: warehouseMeta?.id || null,
+      supabaseReady: Boolean(supabase),
+      syncServiceReady: Boolean(syncService)
+    });
+
+    if (!almacenId) {
+      console.warn('[Realtime useEffect] sin almacenId; no se suscribe a Supabase Realtime');
+      return undefined;
+    }
 
     console.log('⚡ Conectando sincronización específica con Supabase...');
 
