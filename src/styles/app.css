@@ -497,8 +497,8 @@ main {
 
 .modules-overview {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   max-height: calc(100vh - 104px);
   overflow: auto;
   position: sticky;
@@ -511,9 +511,10 @@ main {
   border-radius: 8px;
   color: var(--ink);
   display: grid;
-  gap: 10px;
+  gap: 7px;
   justify-items: stretch;
-  padding: 12px;
+  overflow: hidden;
+  padding: 9px;
   text-align: left;
   width: 100%;
 }
@@ -543,24 +544,27 @@ main {
 
 .overview-module > strong {
   cursor: default;
-  font-size: 16px;
+  font-size: 12px;
   line-height: 1;
   user-select: none;
 }
 
 .overview-module-grid {
   display: grid;
-  gap: 6px;
+  gap: 3px;
+  margin-left: -5px;
+  margin-right: -5px;
+  width: calc(100% + 10px);
 }
 
 .overview-row {
-  min-height: 24px;
+  min-height: 12px;
 }
 
 .overview-row-cells {
   display: grid;
-  gap: 4px;
-  min-height: 24px;
+  gap: 1px;
+  min-height: 12px;
 }
 
 .overview-cell {
@@ -568,22 +572,22 @@ main {
   border: 2px solid transparent;
   border-radius: 2px;
   display: block;
-  min-height: 24px;
+  min-height: 12px;
   overflow: hidden;
   position: relative;
 }
 
 .overview-cubeta-grid {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   height: 100%;
-  min-height: 24px;
+  min-height: 12px;
   width: 100%;
 }
 
 .overview-cubeta {
   display: block;
-  min-height: 24px;
+  min-height: 12px;
 }
 
 .overview-cell.lleno,
