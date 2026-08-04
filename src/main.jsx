@@ -13,6 +13,12 @@ import { syncService } from './lib/syncService';
 import { supabase } from './lib/supabaseClient';
 import './styles/app.css';
 
+console.log('[main.jsx] bundle cargado', {
+  hasRoot: Boolean(document.getElementById('root')),
+  supabaseReady: Boolean(supabase),
+  syncServiceReady: Boolean(syncService)
+});
+
 const ACTIVE_WAREHOUSE_KEY = 'almacen_id_activo';
 const ACTIVE_WAREHOUSE_META_KEY = 'almacen_activo_meta';
 const ACTIVE_OPERATOR_KEY = 'almacen_operario_activo';
@@ -669,10 +675,17 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  console.error('[main.jsx] no se encontro el contenedor #root; React no puede montar la app');
+} else {
+  console.log('[main.jsx] montando React');
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </React.StrictMode>
+  );
+}
