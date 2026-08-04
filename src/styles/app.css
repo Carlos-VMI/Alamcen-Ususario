@@ -160,7 +160,7 @@ main {
   align-items: center;
   display: grid;
   gap: 6px;
-  grid-template-columns: minmax(190px, 1fr) 38px auto auto;
+  grid-template-columns: 38px minmax(190px, 1fr) 38px auto auto;
 }
 
 .pick-header-input {
@@ -184,9 +184,21 @@ main {
 }
 
 .pick-header-mic,
+.pick-header-collapse,
 .pick-header-search-button,
 .pick-header-ready {
   min-height: 38px;
+}
+
+.pick-header-collapse {
+  background: #244a77;
+  color: #fff;
+  padding: 0;
+}
+
+.pick-header-collapse:disabled {
+  cursor: default;
+  opacity: 0.42;
 }
 
 .pick-header-mic {
@@ -930,6 +942,13 @@ main {
   color: #fff;
 }
 
+.cubeta-card.pick-solid {
+  background: #fff8d7;
+  border-color: #facc15;
+  box-shadow: inset 0 0 0 2px rgba(250, 204, 21, 0.58);
+  color: #1f2933;
+}
+
 .cubeta-card.unassigned {
   background: #e5e7eb;
   border-color: #b8c0cc;
@@ -1194,7 +1213,7 @@ main {
 .pick-notice {
   background: #fff7d6;
   border: 1px solid #facc15;
-  color: #713f12;
+  color: #111827;
 }
 
 .pick-error {
@@ -1371,7 +1390,7 @@ main {
   }
 
   .pick-header-search {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
 
   .pick-header-search-button,

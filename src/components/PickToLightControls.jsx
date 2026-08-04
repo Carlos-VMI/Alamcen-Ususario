@@ -1,4 +1,4 @@
-import { Check, Mic, Search, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Mic, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const BLINK_DURATION_MS = 5000;
@@ -108,6 +108,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
   const [lightStates, setLightStates] = useState({});
   const [isRecording, setIsRecording] = useState(false);
   const [message, setMessage] = useState('');
+  const [listCollapsed, setListCollapsed] = useState(false);
   const recognitionRef = useRef(null);
   const timersRef = useRef([]);
   const inventory = useMemo(() => flattenInventory(config), [config]);
@@ -156,6 +157,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     ]);
     setQuery('');
     setMessage('');
+    setListCollapsed(false);
   };
 
   const removePickEntry = (id) => {
@@ -182,6 +184,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
 
     setPickList(nextList);
     setQuery('');
+    setListCollapsed(false);
 
     const foundItems = Array.from(new Map(nextList
       .map((entry) => (
@@ -227,6 +230,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     setLightStates({});
     setQuery('');
     setMessage('');
+    setListCollapsed(false);
   };
 
   const startRecognition = () => {
@@ -273,11 +277,22 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     startRecognition();
   };
 
-  const hasPopover = suggestions.length > 0 || pickList.length > 0 || message;
+  const hasListContent = suggestions.length > 0 || pickList.length > 0 || message;
+  const hasPopover = hasListContent && !listCollapsed;
 
   return (
     <div className="pick-header-tools">
       <div className="pick-header-search">
+        <button
+          className="pick-header-collapse"
+          type="button"
+          onClick={() => setListCollapsed((current) => !current)}
+          disabled={!hasListContent}
+          title={listCollapsed ? 'Mostrar lista' : 'Ocultar lista'}
+          aria-label={listCollapsed ? 'Mostrar lista' : 'Ocultar lista'}
+        >
+          {listCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+        </button>
         <input
           className="pick-header-input"
           type="search"

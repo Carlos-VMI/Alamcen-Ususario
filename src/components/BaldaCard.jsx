@@ -58,7 +58,7 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
 
           return (
             <button
-              className={`cubeta-card ${currentState} ${cubeta.sku ? 'assigned' : 'unassigned'}`}
+              className={`cubeta-card ${currentState} ${cubeta.sku ? 'assigned' : 'unassigned'} pick-${parentPickLightState}`}
               key={cubeta.id}
               type="button"
               onClick={() => handleCubetaClick(cubeta)}
