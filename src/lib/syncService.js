@@ -380,7 +380,7 @@ export const syncService = {
     const { data: modules, error: modulesError } = await withTimeout(modulesQuery, 'Descarga de modulos');
     if (modulesError) throw modulesError;
 
-    const localBeforeMerge = await readRawConfig(almacenId);
+    const localBeforeMerge = fullRefresh ? { modules: [] } : await readRawConfig(almacenId);
     const moduleIds = Array.from(new Set([
       ...localBeforeMerge.modules.map((module) => module.id),
       ...(modules ?? []).map((module) => module.id)
