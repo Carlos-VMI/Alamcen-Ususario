@@ -120,7 +120,11 @@ export function PickToLightControls({ config, onLightStatesChange }) {
         : findInventoryItem(entry.text, inventory)
     }))
   ), [inventory, pickList]);
-  const suggestions = useMemo(() => searchInventoryItems(query, inventory, 8), [inventory, query]);
+  const selectedItemIds = useMemo(() => new Set(matches.map((entry) => entry.item?.id).filter(Boolean)), [matches]);
+  const suggestions = useMemo(
+    () => searchInventoryItems(query, inventory, 8).filter((item) => !selectedItemIds.has(item.id)),
+    [inventory, query, selectedItemIds]
+  );
 
   useEffect(() => {
     onLightStatesChange(lightStates);
@@ -135,13 +139,19 @@ export function PickToLightControls({ config, onLightStatesChange }) {
   const addPickEntry = (rawText, item = null) => {
     const text = String(rawText || item?.descripcion || item?.sku || item?.skuBase || item?.ubicacion || '').trim();
     if (!text) return;
+    const resolvedItem = item || findInventoryItem(text, inventory);
+    if (resolvedItem && selectedItemIds.has(resolvedItem.id)) {
+      setQuery('');
+      setMessage('Ese articulo ya esta en la lista.');
+      return;
+    }
 
     setPickList((current) => [
       ...current,
       {
         id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
         text,
-        itemId: item?.id || null
+        itemId: resolvedItem?.id || null
       }
     ]);
     setQuery('');
@@ -154,13 +164,18 @@ export function PickToLightControls({ config, onLightStatesChange }) {
 
   const executeSearch = () => {
     const selectedSuggestion = suggestions[0] || null;
+    const resolvedQueryItem = query.trim()
+      ? selectedSuggestion || findInventoryItem(query, inventory)
+      : null;
     const nextList = query.trim()
-      ? [
+      ? selectedItemIds.has(resolvedQueryItem?.id)
+        ? pickList
+        : [
         ...pickList,
         {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           text: query.trim(),
-          itemId: selectedSuggestion?.id || null
+          itemId: resolvedQueryItem?.id || null
         }
       ]
       : pickList;
@@ -168,13 +183,14 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     setPickList(nextList);
     setQuery('');
 
-    const foundItems = nextList
+    const foundItems = Array.from(new Map(nextList
       .map((entry) => (
         entry.itemId
           ? inventory.find((item) => item.id === entry.itemId) ?? findInventoryItem(entry.text, inventory)
           : findInventoryItem(entry.text, inventory)
       ))
-      .filter(Boolean);
+      .filter(Boolean)
+      .map((item) => [item.id, item])).values());
 
     if (!foundItems.length) {
       setLightStates({});
