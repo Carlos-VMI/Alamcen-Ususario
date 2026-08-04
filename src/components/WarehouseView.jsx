@@ -22,8 +22,6 @@ function stateClassForShelf(shelf, estadosById, pickLightStates = {}) {
 
 function stateClassForCubeta(cubeta, estadosById, pickLightStates = {}, shelfId = '') {
   if (!cubeta.sku) return 'unassigned';
-  if (pickLightStates[shelfId] === 'blinking') return 'pick-blinking';
-  if (pickLightStates[shelfId] === 'solid') return 'pick-solid';
   return estadosById.get(cubeta.id) || 'lleno';
 }
 

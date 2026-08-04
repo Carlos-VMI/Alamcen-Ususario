@@ -184,7 +184,6 @@ export function PickToLightControls({ config, onLightStatesChange }) {
 
     setPickList(nextList);
     setQuery('');
-    setListCollapsed(false);
 
     const foundItems = Array.from(new Map(nextList
       .map((entry) => (
