@@ -11,16 +11,20 @@ export function useSupabaseSync(almacenId) {
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   const runInitialSync = useCallback(async () => {
-    if (!almacenId || !online || syncLockRef.current) return;
+    if (!almacenId || syncLockRef.current) return;
 
     syncLockRef.current = true;
     setIsInitializing(true);
     setLastError(null);
     try {
-      await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
+      if (online) {
+        await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
+      } else {
+        await syncService.rebuildShelfConfigFromLocalCache(almacenId);
+      }
       setLastSyncedAt(new Date());
     } catch (error) {
-      setLastError(error?.message || 'Error sincronizando datos de Supabase');
+      setLastError(error?.message || 'Error sincronizando datos');
     } finally {
       setIsInitializing(false);
       syncLockRef.current = false;
@@ -28,19 +32,27 @@ export function useSupabaseSync(almacenId) {
   }, [almacenId, online]);
 
   const forceFullRefresh = useCallback(async () => {
-    if (!almacenId || !online) return;
+    if (!almacenId) return;
 
     setIsRealtimeSyncing(true);
     setLastError(null);
     try {
-      await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
+      if (navigator.onLine) {
+        await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
+      } else {
+        await syncService.rebuildShelfConfigFromLocalCache(almacenId);
+      }
       setLastSyncedAt(new Date());
     } catch (error) {
-      setLastError(error?.message || 'Error refrescando datos de Supabase');
+      try {
+        await syncService.rebuildShelfConfigFromLocalCache(almacenId);
+      } catch (innerError) {
+        setLastError(innerError?.message || error?.message || 'Error refrescando datos');
+      }
     } finally {
       setIsRealtimeSyncing(false);
     }
-  }, [almacenId, online]);
+  }, [almacenId]);
 
   useEffect(() => {
     runInitialSync();
