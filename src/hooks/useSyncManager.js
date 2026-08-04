@@ -69,7 +69,7 @@ export function useSyncManager(almacenId) {
     if (!almacenId || !online) return undefined;
 
     const channel = supabase
-      .channel(`operario-articulos-${almacenId}`)
+      .channel(`operario-config-${almacenId}`)
       .on(
         'postgres_changes',
         {
@@ -84,12 +84,51 @@ export function useSyncManager(almacenId) {
           });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'almacen_modulos',
+          filter: `almacen_id=eq.${almacenId}`
+        },
+        () => {
+          syncService.downloadRemoteConfig(almacenId, { fullRefresh: true })
+            .then((rows) => {
+              queryClient.setQueryData(['remote-config', almacenId], rows);
+              setLastSuccessfulSyncAt(new Date());
+              setAutoSyncError(null);
+            })
+            .catch((error) => {
+              setAutoSyncError(error?.message || 'Error actualizando modulos realtime');
+            });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'almacen_estantes'
+        },
+        () => {
+          syncService.downloadRemoteConfig(almacenId, { fullRefresh: true })
+            .then((rows) => {
+              queryClient.setQueryData(['remote-config', almacenId], rows);
+              setLastSuccessfulSyncAt(new Date());
+              setAutoSyncError(null);
+            })
+            .catch((error) => {
+              setAutoSyncError(error?.message || 'Error actualizando estantes realtime');
+            });
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [almacenId, online]);
+  }, [almacenId, online, queryClient]);
 
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;
@@ -114,7 +153,7 @@ export function useSyncManager(almacenId) {
 
     configPollLockRef.current = true;
     try {
-      const rows = await syncService.downloadRemoteConfig(activeAlmacenId);
+      const rows = await syncService.downloadRemoteConfig(activeAlmacenId, { fullRefresh: true });
       queryClient.setQueryData(['remote-config', activeAlmacenId], rows);
       setLastSuccessfulSyncAt(new Date());
       setAutoSyncError(null);

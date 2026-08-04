@@ -365,8 +365,8 @@ export const syncService = {
     return this.rebuildShelfConfigFromLocalCache(almacenId);
   },
 
-  async downloadRemoteConfig(almacenId) {
-    const lastSyncAt = await getSyncMetadata(configSyncKey(almacenId));
+  async downloadRemoteConfig(almacenId, { fullRefresh = false } = {}) {
+    const lastSyncAt = fullRefresh ? null : await getSyncMetadata(configSyncKey(almacenId));
     const syncStartedAt = nowIso();
 
     let modulesQuery = supabase
