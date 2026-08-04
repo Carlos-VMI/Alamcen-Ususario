@@ -462,12 +462,16 @@ function App() {
   const pendingPedidoCount = queuedPedidos.length;
 
   useEffect(() => {
+    console.log('[Realtime useEffect] disparado', { almacenId });
+
     if (!almacenId) {
+      console.warn('[Realtime useEffect] bloqueado: almacenId vacio o no inicializado');
       realtimeAlmacenRef.current = null;
       return undefined;
     }
 
     if (realtimeAlmacenRef.current === almacenId) {
+      console.log('[Realtime useEffect] suscripcion ya activa para este almacen', { almacenId });
       return undefined;
     }
 
