@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
 import { syncService } from '../lib/syncService';
 import { useOnlineStatus } from './useOnlineStatus';
 
@@ -46,51 +45,6 @@ export function useSupabaseSync(almacenId) {
   useEffect(() => {
     runInitialSync();
   }, [runInitialSync]);
-
-  useEffect(() => {
-    if (!almacenId || !online) return undefined;
-
-    const applySyncSignal = async () => {
-      setIsRealtimeSyncing(true);
-      setLastError(null);
-      try {
-        await syncService.downloadRemoteConfig(almacenId, { fullRefresh: true });
-        setLastSyncedAt(new Date());
-      } catch (error) {
-        setLastError(error?.message || 'Error aplicando señal de sincronización');
-      } finally {
-        setIsRealtimeSyncing(false);
-      }
-    };
-
-    const channel = supabase
-      .channel('public:cambios')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'almacen_sync',
-          filter: `almacen_id=eq.${almacenId}`
-        },
-        applySyncSignal
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'almacen_sync',
-          filter: `almacen_id=eq.${almacenId}`
-        },
-        applySyncSignal
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [almacenId, online]);
 
   return useMemo(() => ({
     isInitializing,

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -443,6 +443,57 @@ function App() {
       .length
   ), [config, estadosById]);
   const pendingPedidoCount = queuedPedidos.length;
+
+  useEffect(() => {
+    if (!almacenId) return undefined;
+
+    console.log('⚡ Restaurando sincronización original con Supabase...');
+
+    const applyRealtimeChange = async (table, payload) => {
+      try {
+        if (table === 'almacen_articulos') {
+          if (payload.eventType !== 'DELETE' && payload.new?.almacen_id !== almacenId) return;
+          await syncService.applyArticleRealtimeChange(almacenId, payload);
+          return;
+        }
+
+        if (table === 'almacen_modulos') {
+          if (payload.eventType !== 'DELETE' && payload.new?.almacen_id !== almacenId) return;
+          await syncService.applyModuleRealtimeChange(almacenId, payload);
+          return;
+        }
+
+        if (table === 'almacen_estantes') {
+          await syncService.applyShelfRealtimeChange(almacenId, payload);
+        }
+      } catch (error) {
+        console.error('Error aplicando cambio Realtime de Supabase', error);
+      }
+    };
+
+    const channel = supabase
+      .channel('sync-almacen-original')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'almacen_articulos' },
+        (payload) => applyRealtimeChange('almacen_articulos', payload)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'almacen_modulos' },
+        (payload) => applyRealtimeChange('almacen_modulos', payload)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'almacen_estantes' },
+        (payload) => applyRealtimeChange('almacen_estantes', payload)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [almacenId]);
 
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
     if (needsWarehouseSelection) {
