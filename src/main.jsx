@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -415,13 +415,7 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
-  console.log('[App] render inicial/actual', {
-    almacenId,
-    hasOperator: Boolean(operator),
-    warehouseMetaId: warehouseMeta?.id || null,
-    supabaseReady: Boolean(supabase),
-    syncServiceReady: Boolean(syncService)
-  });
+  const realtimeAlmacenRef = useRef(null);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const queuedPedidos = useLiveQuery(
@@ -431,17 +425,33 @@ function App() {
   );
   const sync = useSyncManager(almacenId);
   const supabaseSync = useSupabaseSync(almacenId);
+  const handleManualSync = useCallback(async () => {
+    await sync.forceSync();
+    await supabaseSync.forceFullRefresh();
+  }, [sync.forceSync, supabaseSync.forceFullRefresh]);
   const combinedSync = useMemo(() => ({
-    ...sync,
+    online: sync.online,
+    pendingCount: sync.pendingCount,
+    syncNow: sync.syncNow,
     isSyncing: sync.isSyncing || supabaseSync.isInitializing || supabaseSync.isRealtimeSyncing,
     lastSyncError: sync.lastSyncError || supabaseSync.lastError,
     lastSuccessfulSyncAt: supabaseSync.lastSyncedAt || sync.lastSuccessfulSyncAt,
     configLoading: sync.configLoading || supabaseSync.isInitializing,
-    forceSync: async () => {
-      await sync.forceSync();
-      await supabaseSync.forceFullRefresh();
-    }
-  }), [supabaseSync, sync]);
+    forceSync: handleManualSync
+  }), [
+    handleManualSync,
+    sync.online,
+    sync.pendingCount,
+    sync.syncNow,
+    sync.isSyncing,
+    sync.lastSyncError,
+    sync.lastSuccessfulSyncAt,
+    sync.configLoading,
+    supabaseSync.isInitializing,
+    supabaseSync.isRealtimeSyncing,
+    supabaseSync.lastError,
+    supabaseSync.lastSyncedAt
+  ]);
   const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado.estado])), [estados]);
   const pendingOrderCount = useMemo(() => (
     config
@@ -452,19 +462,16 @@ function App() {
   const pendingPedidoCount = queuedPedidos.length;
 
   useEffect(() => {
-    console.log('[Realtime useEffect] entrada', {
-      almacenId,
-      hasOperator: Boolean(operator),
-      warehouseMetaId: warehouseMeta?.id || null,
-      supabaseReady: Boolean(supabase),
-      syncServiceReady: Boolean(syncService)
-    });
-
     if (!almacenId) {
-      console.warn('[Realtime useEffect] sin almacenId; no se suscribe a Supabase Realtime');
+      realtimeAlmacenRef.current = null;
       return undefined;
     }
 
+    if (realtimeAlmacenRef.current === almacenId) {
+      return undefined;
+    }
+
+    realtimeAlmacenRef.current = almacenId;
     console.log('⚡ Conectando sincronización específica con Supabase...');
 
     const applyArticleChange = async (payload) => {
@@ -501,9 +508,9 @@ function App() {
       });
 
     return () => {
+      realtimeAlmacenRef.current = null;
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [almacenId]);
 
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
