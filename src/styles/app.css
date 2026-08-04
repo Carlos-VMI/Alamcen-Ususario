@@ -552,9 +552,9 @@ main {
 .overview-module-grid {
   display: grid;
   gap: 3px;
-  margin-left: -5px;
-  margin-right: -5px;
-  width: calc(100% + 10px);
+  margin-left: -25%;
+  margin-right: -25%;
+  width: 150%;
 }
 
 .overview-row {

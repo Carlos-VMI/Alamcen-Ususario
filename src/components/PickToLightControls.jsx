@@ -160,6 +160,14 @@ export function PickToLightControls({ config, onLightStatesChange }) {
     setListCollapsed(false);
   };
 
+  const handleQueryChange = (event) => {
+    const nextQuery = event.target.value;
+    setQuery(nextQuery);
+    if (nextQuery.trim()) {
+      setListCollapsed(false);
+    }
+  };
+
   const removePickEntry = (id) => {
     setPickList((current) => current.filter((entry) => entry.id !== id));
   };
@@ -252,6 +260,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
         .join(' ')
         .trim();
       if (transcript) setQuery(transcript);
+      if (transcript) setListCollapsed(false);
     };
 
     recognition.onerror = () => {
@@ -299,7 +308,7 @@ export function PickToLightControls({ config, onLightStatesChange }) {
           autoComplete="off"
           enterKeyHint="done"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={handleQueryChange}
           onKeyDown={(event) => {
             if (event.key === 'Enter') addPickEntry(query, suggestions[0] || null);
           }}
