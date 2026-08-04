@@ -502,15 +502,42 @@ export const syncService = {
         .toArray())
         .map((item) => item.entity_id)
     );
-    const rows = configRows
+
+    const candidates = configRows
       .flatMap((row) => row.cubetas?.length ? row.cubetas : [row])
-      .filter((cubeta) => cubeta.sku && !pendingStateIds.has(cubeta.id))
-      .map((cubeta) => ({
+      .filter((cubeta) => cubeta.sku);
+
+    const existingStates = await db.estados_baldas.bulkGet(candidates.map((cubeta) => cubeta.id));
+    const existingById = new Map(
+      existingStates
+        .filter(Boolean)
+        .map((state) => [state.id_balda, state])
+    );
+    const syncedAt = nowIso();
+    const rows = [];
+
+    for (const cubeta of candidates) {
+      if (pendingStateIds.has(cubeta.id)) continue;
+
+      const existing = existingById.get(cubeta.id);
+      const remoteUpdatedAt = cubeta.estado_updated_at || null;
+
+      if (existing) {
+        const localUpdatedAt = existing.updated_at || '';
+        const remoteIsAuthoritative = remoteUpdatedAt && String(remoteUpdatedAt) > String(localUpdatedAt);
+
+        if (!remoteIsAuthoritative) continue;
+      }
+
+      rows.push({
         id_balda: cubeta.id,
         estado: cubeta.estado || SHELF_STATES.FULL,
-        updated_at: cubeta.estado_updated_at || cubeta.updated_at || nowIso(),
-        synced_at: nowIso()
-      }));
+        updated_at: remoteUpdatedAt || cubeta.updated_at || syncedAt,
+        synced_at: syncedAt,
+        articulo_id: cubeta.articulo_id ?? null,
+        sku: cubeta.sku ?? null
+      });
+    }
 
     if (rows.length) {
       await db.estados_baldas.bulkPut(rows);
