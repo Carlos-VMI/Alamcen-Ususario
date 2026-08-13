@@ -18,6 +18,17 @@ db.version(2).stores({
   sync_metadata: 'key'
 });
 
+db.version(3).stores({
+  estanterias_config: 'id, almacen_id, modulo, estante, posicion, articulo_id, sku, updated_at',
+  estados_baldas: 'id_balda, estado, updated_at, synced_at',
+  cola_sincronizacion: '++id, tipo, entity_id, created_at, attempts',
+  almacen_modulos: 'id, almacen_id, orden, updated_at',
+  almacen_estantes: 'id, modulo_id, numero, updated_at',
+  almacen_articulos: 'id, almacen_id, sku, updated_at',
+  sync_metadata: 'key',
+  led_mappings: 'id, almacen_id, esp32Ip, id_balda'
+});
+
 async function enqueueStateChange(idBalda, estado, updatedAt) {
   const existing = await db.cola_sincronizacion
     .where('entity_id')

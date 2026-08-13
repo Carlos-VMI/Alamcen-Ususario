@@ -8,6 +8,7 @@ import {
   setSyncMetadata,
   upsertShelfStates
 } from './db';
+import { ledService } from './ledService';
 import { sendPedidoEmail } from './orderService';
 import { supabase } from './supabaseClient';
 
@@ -567,10 +568,17 @@ export const syncService = {
         }
       });
     });
+
+    await ledService.syncShelvesByIds([idBalda]).catch((error) => {
+      console.warn('No se pudo actualizar LED fisico', error);
+    });
   },
 
   async updateManyShelfStates(items) {
     await upsertShelfStates(items);
+    await ledService.syncShelvesByIds(items.map((item) => item.id_balda)).catch((error) => {
+      console.warn('No se pudieron actualizar LEDs fisicos', error);
+    });
   },
 
   async markEmptyShelvesAsOrdered(shelves, statesById) {

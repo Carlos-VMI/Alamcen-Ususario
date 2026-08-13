@@ -1,0 +1,122 @@
+import { db } from './db';
+
+const STATE_COLORS = {
+  lleno: '#15803d',
+  vacio: '#b42318',
+  pedido: '#fd6a01',
+  unassigned: '#94a3b8',
+  pick: '#fff200'
+};
+
+function hexToRgb(hex) {
+  const normalized = String(hex || '').replace('#', '').trim();
+  const value = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized.padEnd(6, '0').slice(0, 6);
+  const parsed = Number.parseInt(value, 16);
+
+  return {
+    r: (parsed >> 16) & 255,
+    g: (parsed >> 8) & 255,
+    b: parsed & 255
+  };
+}
+
+function colorForState(state) {
+  return STATE_COLORS[state] || STATE_COLORS.unassigned;
+}
+
+function normalizeIp(value) {
+  return String(value || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+}
+
+async function postSegments(esp32Ip, segments) {
+  const ip = normalizeIp(esp32Ip);
+  if (!ip || !segments.length || !navigator.onLine) return { skipped: true };
+
+  const response = await fetch(`http://${ip}/api/leds`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ segments })
+  });
+
+  if (!response.ok) {
+    throw new Error(`ESP32 ${ip} respondio ${response.status}`);
+  }
+
+  return response.json().catch(() => ({ ok: true }));
+}
+
+export const ledService = {
+  STATE_COLORS,
+
+  colorForState,
+
+  async saveMapping(mapping) {
+    const now = new Date().toISOString();
+    const row = {
+      ...mapping,
+      id: mapping.id || mapping.id_balda,
+      id_balda: mapping.id_balda || mapping.id,
+      esp32Ip: normalizeIp(mapping.esp32Ip),
+      startLed: Number(mapping.startLed || 0),
+      ledCount: Number(mapping.ledCount || 0),
+      updated_at: now
+    };
+
+    if (!row.id || !row.id_balda) {
+      throw new Error('Falta el identificador de balda para el mapeo LED');
+    }
+
+    await db.led_mappings.put(row);
+    return row;
+  },
+
+  async deleteMapping(id) {
+    await db.led_mappings.delete(id);
+  },
+
+  async syncShelvesByIds(idBaldas) {
+    const ids = [...new Set((idBaldas || []).filter(Boolean))];
+    if (!ids.length) return { synced: 0 };
+
+    const mappings = (await db.led_mappings.bulkGet(ids)).filter(Boolean);
+    const states = await db.estados_baldas.bulkGet(ids);
+    const stateById = new Map(states.filter(Boolean).map((row) => [row.id_balda, row.estado]));
+
+    return this.sendMappings(mappings, stateById);
+  },
+
+  async syncAllFromLocal() {
+    const mappings = await db.led_mappings.toArray();
+    const states = await db.estados_baldas.toArray();
+    const stateById = new Map(states.map((row) => [row.id_balda, row.estado]));
+    return this.sendMappings(mappings, stateById);
+  },
+
+  async sendMappings(mappings, stateById) {
+    const grouped = new Map();
+
+    for (const mapping of mappings) {
+      const ip = normalizeIp(mapping.esp32Ip);
+      const start = Number(mapping.startLed);
+      const count = Number(mapping.ledCount);
+      if (!ip || !Number.isFinite(start) || !Number.isFinite(count) || count <= 0) continue;
+
+      const state = stateById.get(mapping.id_balda) || 'lleno';
+      const rgb = hexToRgb(mapping.statusColor || colorForState(state));
+      const segments = grouped.get(ip) || [];
+      segments.push({ start, count, ...rgb });
+      grouped.set(ip, segments);
+    }
+
+    const results = [];
+    for (const [ip, segments] of grouped.entries()) {
+      results.push(await postSegments(ip, segments));
+    }
+
+    return { synced: results.length };
+  }
+};

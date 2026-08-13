@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { LedConfigModal } from './components/LedConfigModal';
 import { PickToLightControls } from './components/PickToLightControls';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
 import { useSupabaseSync } from './hooks/useSupabaseSync';
 import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
+import { ledService } from './lib/ledService';
 import { buildPedidoRows } from './lib/orderService';
 import { syncService } from './lib/syncService';
 import { supabase } from './lib/supabaseClient';
@@ -106,6 +108,7 @@ async function clearLocalWarehouseData() {
     db.almacen_estantes,
     db.almacen_articulos,
     db.sync_metadata,
+    db.led_mappings,
     async () => {
       await db.estanterias_config.clear();
       await db.estados_baldas.clear();
@@ -114,6 +117,7 @@ async function clearLocalWarehouseData() {
       await db.almacen_estantes.clear();
       await db.almacen_articulos.clear();
       await db.sync_metadata.clear();
+      await db.led_mappings.clear();
     }
   );
 }
@@ -421,6 +425,7 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
+  const [ledConfigOpen, setLedConfigOpen] = useState(false);
   const realtimeAlmacenRef = useRef(null);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
@@ -523,6 +528,18 @@ function App() {
     };
   }, [almacenId]);
 
+  useEffect(() => {
+    if (!almacenId || !estados.length) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      ledService.syncAllFromLocal().catch((error) => {
+        console.warn('No se pudieron sincronizar LEDs desde Dexie', error);
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [almacenId, estados]);
+
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
     if (needsWarehouseSelection) {
       setPendingAdminOperator(nextOperator);
@@ -610,6 +627,9 @@ function App() {
         <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
           Salir
         </button>
+        <button className="led-config-button" type="button" onClick={() => setLedConfigOpen(true)}>
+          LED
+        </button>
         <StatusIndicator {...combinedSync} onSyncClick={combinedSync.forceSync} />
         <div className="header-spacer" />
         <button
@@ -669,6 +689,14 @@ function App() {
         <ProtectedLogout
           onClose={() => setLogoutOpen(false)}
           onLogout={handleLogout}
+        />
+      ) : null}
+
+      {ledConfigOpen ? (
+        <LedConfigModal
+          almacenId={almacenId}
+          config={config}
+          onClose={() => setLedConfigOpen(false)}
         />
       ) : null}
     </div>
