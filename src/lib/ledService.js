@@ -82,7 +82,7 @@ export const ledService = {
     const ids = [...new Set((idBaldas || []).filter(Boolean))];
     if (!ids.length) return { synced: 0 };
 
-    const mappings = (await db.led_mappings.bulkGet(ids)).filter(Boolean);
+    const mappings = await this.readMappingsForIds(ids);
     const states = await db.estados_baldas.bulkGet(ids);
     const stateById = new Map(states.filter(Boolean).map((row) => [row.id_balda, row.estado]));
 
@@ -90,10 +90,67 @@ export const ledService = {
   },
 
   async syncAllFromLocal() {
-    const mappings = await db.led_mappings.toArray();
+    const mappings = await this.readMappingsFromConfig();
     const states = await db.estados_baldas.toArray();
     const stateById = new Map(states.map((row) => [row.id_balda, row.estado]));
     return this.sendMappings(mappings, stateById);
+  },
+
+  async syncPickLightStates(pickLightStates = {}) {
+    const entries = Object.entries(pickLightStates);
+    if (!entries.length) return this.syncAllFromLocal();
+
+    const activeShelfIds = entries
+      .filter(([, state]) => state === 'blinking' || state === 'solid')
+      .map(([id]) => id);
+    const mappings = await this.readMappingsForShelfIds(activeShelfIds);
+    const stateById = new Map(mappings.map((mapping) => [mapping.id_balda, 'pick']));
+    return this.sendMappings(mappings, stateById);
+  },
+
+  async readMappingsFromConfig() {
+    const rows = await db.estanterias_config.toArray();
+    const mappings = [];
+
+    for (const row of rows) {
+      const cubetas = row.cubetas?.length ? row.cubetas : [row];
+      for (const cubeta of cubetas) {
+        const led = cubeta.led_mapping || row.led_mapping;
+        if (!led?.esp32Ip && !led?.esp32_ip) continue;
+        mappings.push({
+          id: cubeta.id,
+          id_balda: cubeta.id,
+          esp32Ip: led.esp32Ip || led.esp32_ip,
+          startLed: led.startLed,
+          ledCount: led.ledCount,
+          statusColor: led.statusColor
+        });
+      }
+    }
+
+    return mappings;
+  },
+
+  async readMappingsForIds(ids) {
+    const idSet = new Set(ids);
+    return (await this.readMappingsFromConfig()).filter((mapping) => idSet.has(mapping.id_balda));
+  },
+
+  async readMappingsForShelfIds(ids) {
+    const idSet = new Set(ids);
+    const rows = await db.estanterias_config.bulkGet(ids);
+    return rows.filter(Boolean).map((row) => {
+      const led = row.led_mapping;
+      if (!led?.esp32Ip && !led?.esp32_ip) return null;
+      return {
+        id: row.id,
+        id_balda: row.id,
+        esp32Ip: led.esp32Ip || led.esp32_ip,
+        startLed: led.startLed,
+        ledCount: led.ledCount,
+        statusColor: led.statusColor
+      };
+    }).filter(Boolean);
   },
 
   async sendMappings(mappings, stateById) {

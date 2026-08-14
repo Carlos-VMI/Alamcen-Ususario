@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { LedConfigModal } from './components/LedConfigModal';
 import { PickToLightControls } from './components/PickToLightControls';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
@@ -425,7 +424,6 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
-  const [ledConfigOpen, setLedConfigOpen] = useState(false);
   const realtimeAlmacenRef = useRef(null);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
@@ -540,6 +538,18 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [almacenId, estados]);
 
+  useEffect(() => {
+    if (!almacenId) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      ledService.syncPickLightStates(pickLightStates).catch((error) => {
+        console.warn('No se pudieron sincronizar luces de busqueda', error);
+      });
+    }, 120);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [almacenId, pickLightStates]);
+
   const handleLoggedIn = ({ operator: nextOperator, warehouseMeta: nextWarehouseMeta, needsWarehouseSelection }) => {
     if (needsWarehouseSelection) {
       setPendingAdminOperator(nextOperator);
@@ -627,9 +637,6 @@ function App() {
         <button className="logout-button" type="button" onClick={() => setLogoutOpen(true)}>
           Salir
         </button>
-        <button className="led-config-button" type="button" onClick={() => setLedConfigOpen(true)}>
-          LED
-        </button>
         <StatusIndicator {...combinedSync} onSyncClick={combinedSync.forceSync} />
         <div className="header-spacer" />
         <button
@@ -692,13 +699,6 @@ function App() {
         />
       ) : null}
 
-      {ledConfigOpen ? (
-        <LedConfigModal
-          almacenId={almacenId}
-          config={config}
-          onClose={() => setLedConfigOpen(false)}
-        />
-      ) : null}
     </div>
   );
 }

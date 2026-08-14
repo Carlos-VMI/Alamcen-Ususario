@@ -98,6 +98,19 @@ function normalizeLocations(ubicaciones) {
   return [];
 }
 
+function normalizeLedCajones(cajones) {
+  if (Array.isArray(cajones)) return cajones;
+  if (typeof cajones === 'string') {
+    try {
+      const parsed = JSON.parse(cajones);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function normalizeSuffix(value, index = 0) {
   const text = String(value ?? '').trim();
   if (text) return text.padStart(2, '0');
@@ -257,11 +270,23 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
     if (!module) return [];
 
     const count = Math.min(8, Math.max(0, toNumber(shelf.cantidad_baldas, 0)));
+    const ledCajones = normalizeLedCajones(shelf.cajones);
     return Array.from({ length: count }, (_, index) => {
       const position = index + 1;
       const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position))
         ?? null;
       const shelfId = makeShelfId(shelf.modulo_id, shelf.numero, position);
+      const ledCajon = ledCajones.find((item) => toNumber(item.posicion) === position) ?? ledCajones[index] ?? null;
+      const ledMapping = ledCajon && (shelf.esp32_ip || ledCajon.esp32_ip)
+        ? {
+            id_balda: shelfId,
+            esp32Ip: String(ledCajon.esp32_ip || shelf.esp32_ip || '').trim(),
+            startLed: toNumber(ledCajon.startLed, 0),
+            ledCount: toNumber(ledCajon.ledCount, 0),
+            ancho_cm: toNumber(ledCajon.ancho_cm, 0),
+            total_leds: toNumber(shelf.total_leds, 0)
+          }
+        : null;
       const cubetas = (assignment?.cubetas ?? []).map((cubeta, cubetaIndex) => ({
         ...cubeta,
         id: makeCubetaId(shelf.modulo_id, shelf.numero, position, cubeta.sufijo ?? normalizeSuffix(null, cubetaIndex)),
@@ -274,7 +299,8 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         posicion: position,
         etiqueta_balda: `C${position}`,
         ubicacion: makeDisplayLocation(module, shelf.numero, position),
-        codigo_ubicacion: makeCompactLocation(module, shelf.numero, position)
+        codigo_ubicacion: makeCompactLocation(module, shelf.numero, position),
+        led_mapping: ledMapping
       }));
 
       return {
@@ -295,6 +321,7 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         descripcion: assignment?.descripcion ?? null,
         capacidad: cubetas.reduce((sum, cubeta) => sum + toNumber(cubeta.capacidad, 0), 0),
         cubetas,
+        led_mapping: ledMapping,
         ubicacion: makeDisplayLocation(module, shelf.numero, position),
         codigo_ubicacion: makeCompactLocation(module, shelf.numero, position),
         updated_at: [module.updated_at, shelf.updated_at, assignment?.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
