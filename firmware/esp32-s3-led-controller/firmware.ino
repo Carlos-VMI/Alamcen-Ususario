@@ -9,6 +9,10 @@
 // =========================
 const uint16_t TOTAL_LEDS = 300;
 const uint8_t DATA_PIN = 5;
+const uint8_t DATA_PIN_CH1 = 5;
+const uint8_t DATA_PIN_CH2 = 6;
+const uint8_t DATA_PIN_CH3 = 7;
+const uint8_t DATA_PIN_CH4 = 8;
 const uint8_t BRIGHTNESS = 120;
 const char* WIFI_SSID = "TU_WIFI";
 const char* WIFI_PASSWORD = "TU_PASSWORD";
@@ -17,8 +21,30 @@ const char* WIFI_PASSWORD = "TU_PASSWORD";
 #define LED_CHIPSET WS2812B
 #define LED_COLOR_ORDER GRB
 
-CRGB leds[TOTAL_LEDS];
+CRGB ledsCh1[TOTAL_LEDS];
+CRGB ledsCh2[TOTAL_LEDS];
+CRGB ledsCh3[TOTAL_LEDS];
+CRGB ledsCh4[TOTAL_LEDS];
 WebServer server(80);
+
+CRGB* channelLeds(uint8_t channel) {
+  if (channel == 2) return ledsCh2;
+  if (channel == 3) return ledsCh3;
+  if (channel == 4) return ledsCh4;
+  return ledsCh1;
+}
+
+void showAllChannels() {
+  FastLED.show();
+}
+
+void clearAllChannels() {
+  fill_solid(ledsCh1, TOTAL_LEDS, CRGB::Black);
+  fill_solid(ledsCh2, TOTAL_LEDS, CRGB::Black);
+  fill_solid(ledsCh3, TOTAL_LEDS, CRGB::Black);
+  fill_solid(ledsCh4, TOTAL_LEDS, CRGB::Black);
+  showAllChannels();
+}
 
 void addCorsHeaders() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -47,8 +73,7 @@ void handleHealth() {
 }
 
 void handleClear() {
-  fill_solid(leds, TOTAL_LEDS, CRGB::Black);
-  FastLED.show();
+  clearAllChannels();
   sendJson(200, "{\"ok\":true,\"cleared\":true}");
 }
 
@@ -75,12 +100,15 @@ void handleLeds() {
   for (JsonObject segment : segments) {
     int start = segment["start"] | -1;
     int count = segment["count"] | 0;
+    uint8_t channel = segment["channel"] | 1;
     uint8_t r = segment["r"] | 0;
     uint8_t g = segment["g"] | 0;
     uint8_t b = segment["b"] | 0;
 
     if (start < 0 || count <= 0 || start >= TOTAL_LEDS) continue;
+    if (channel < 1 || channel > 4) channel = 1;
 
+    CRGB* leds = channelLeds(channel);
     int end = min(start + count, static_cast<int>(TOTAL_LEDS));
     for (int i = start; i < end; i++) {
       leds[i] = CRGB(r, g, b);
@@ -88,7 +116,7 @@ void handleLeds() {
     applied++;
   }
 
-  FastLED.show();
+  showAllChannels();
   String body = "{\"ok\":true,\"segmentsApplied\":" + String(applied) + "}";
   sendJson(200, body);
 }
@@ -112,10 +140,12 @@ void setup() {
   Serial.begin(115200);
   delay(300);
 
-  FastLED.addLeds<LED_CHIPSET, DATA_PIN, LED_COLOR_ORDER>(leds, TOTAL_LEDS);
+  FastLED.addLeds<LED_CHIPSET, DATA_PIN_CH1, LED_COLOR_ORDER>(ledsCh1, TOTAL_LEDS);
+  FastLED.addLeds<LED_CHIPSET, DATA_PIN_CH2, LED_COLOR_ORDER>(ledsCh2, TOTAL_LEDS);
+  FastLED.addLeds<LED_CHIPSET, DATA_PIN_CH3, LED_COLOR_ORDER>(ledsCh3, TOTAL_LEDS);
+  FastLED.addLeds<LED_CHIPSET, DATA_PIN_CH4, LED_COLOR_ORDER>(ledsCh4, TOTAL_LEDS);
   FastLED.setBrightness(BRIGHTNESS);
-  fill_solid(leds, TOTAL_LEDS, CRGB::Black);
-  FastLED.show();
+  clearAllChannels();
 
   connectWifi();
 

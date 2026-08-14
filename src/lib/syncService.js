@@ -281,10 +281,12 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         ? {
             id_balda: shelfId,
             esp32Ip: String(ledCajon.esp32_ip || shelf.esp32_ip || '').trim(),
+            channel: toNumber(ledCajon.canal ?? ledCajon.channel ?? shelf.canal_led, 1),
             startLed: toNumber(ledCajon.startLed, 0),
             ledCount: toNumber(ledCajon.ledCount, 0),
             ancho_cm: toNumber(ledCajon.ancho_cm, 0),
-            total_leds: toNumber(shelf.total_leds, 0)
+            total_leds: toNumber(shelf.total_leds, 0),
+            controlador_id: ledCajon.controlador_id ?? null
           }
         : null;
       const cubetas = (assignment?.cubetas ?? []).map((cubeta, cubetaIndex) => ({

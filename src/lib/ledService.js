@@ -61,6 +61,7 @@ export const ledService = {
       id: mapping.id || mapping.id_balda,
       id_balda: mapping.id_balda || mapping.id,
       esp32Ip: normalizeIp(mapping.esp32Ip),
+      channel: Number(mapping.channel || mapping.canal || 1),
       startLed: Number(mapping.startLed || 0),
       ledCount: Number(mapping.ledCount || 0),
       updated_at: now
@@ -121,6 +122,7 @@ export const ledService = {
           id: cubeta.id,
           id_balda: cubeta.id,
           esp32Ip: led.esp32Ip || led.esp32_ip,
+          channel: led.channel || led.canal || 1,
           startLed: led.startLed,
           ledCount: led.ledCount,
           statusColor: led.statusColor
@@ -146,6 +148,7 @@ export const ledService = {
         id: row.id,
         id_balda: row.id,
         esp32Ip: led.esp32Ip || led.esp32_ip,
+        channel: led.channel || led.canal || 1,
         startLed: led.startLed,
         ledCount: led.ledCount,
         statusColor: led.statusColor
@@ -165,7 +168,7 @@ export const ledService = {
       const state = stateById.get(mapping.id_balda) || 'lleno';
       const rgb = hexToRgb(mapping.statusColor || colorForState(state));
       const segments = grouped.get(ip) || [];
-      segments.push({ start, count, ...rgb });
+      segments.push({ channel: Number(mapping.channel || mapping.canal || 1), start, count, ...rgb });
       grouped.set(ip, segments);
     }
 
