@@ -4,11 +4,11 @@ Firmware para controlar tiras WS2812B o WS2815 desde la PWA de operario.
 
 ## Configuracion rapida
 
-1. Edita `firmware.ino`.
-2. Cambia `TOTAL_LEDS`, `DATA_PIN`, `BRIGHTNESS`, `WIFI_SSID` y `WIFI_PASSWORD`.
+1. Edita `firmware.ino` solo si necesitas cambiar pines, brillo o el maximo de LEDs por canal.
+2. Carga el firmware. Si el ESP32 no tiene Wi-Fi guardado, crea el AP `ESP32-Almacen-Config` para configurarlo desde un movil.
 3. Compila con Arduino IDE o PlatformIO.
 4. Carga el firmware en el ESP32-S3.
-5. En la PWA, abre `LED` y asigna la IP del ESP32, `startLed` y `ledCount` por balda.
+5. Configura controladores, modulos, canales y cubetas desde la web de administracion. La PWA solo consume ese mapeo.
 
 Endpoint principal:
 
@@ -17,6 +17,7 @@ POST http://<ESP32_IP>/api/leds
 Content-Type: application/json
 
 {
+  "channel": 1,
   "segments": [
     { "start": 0, "count": 12, "r": 0, "g": 255, "b": 0 }
   ]

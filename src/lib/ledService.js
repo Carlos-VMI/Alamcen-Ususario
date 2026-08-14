@@ -30,7 +30,7 @@ function normalizeIp(value) {
   return String(value || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
 }
 
-async function postSegments(esp32Ip, segments) {
+async function postSegments(esp32Ip, channel, segments) {
   const ip = normalizeIp(esp32Ip);
   if (!ip || !segments.length || !navigator.onLine) return { skipped: true };
 
@@ -39,7 +39,10 @@ async function postSegments(esp32Ip, segments) {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ segments })
+    body: JSON.stringify({
+      channel: Number(channel || 1),
+      segments
+    })
   });
 
   if (!response.ok) {
@@ -161,20 +164,22 @@ export const ledService = {
 
     for (const mapping of mappings) {
       const ip = normalizeIp(mapping.esp32Ip);
+      const channel = Number(mapping.channel || mapping.canal || 1);
       const start = Number(mapping.startLed);
       const count = Number(mapping.ledCount);
       if (!ip || !Number.isFinite(start) || !Number.isFinite(count) || count <= 0) continue;
 
       const state = stateById.get(mapping.id_balda) || 'lleno';
       const rgb = hexToRgb(mapping.statusColor || colorForState(state));
-      const segments = grouped.get(ip) || [];
-      segments.push({ channel: Number(mapping.channel || mapping.canal || 1), start, count, ...rgb });
-      grouped.set(ip, segments);
+      const groupKey = `${ip}::${channel}`;
+      const group = grouped.get(groupKey) || { ip, channel, segments: [] };
+      group.segments.push({ start, count, ...rgb });
+      grouped.set(groupKey, group);
     }
 
     const results = [];
-    for (const [ip, segments] of grouped.entries()) {
-      results.push(await postSegments(ip, segments));
+    for (const group of grouped.values()) {
+      results.push(await postSegments(group.ip, group.channel, group.segments));
     }
 
     return { synced: results.length };
