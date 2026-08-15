@@ -271,7 +271,12 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
 
     const count = Math.min(8, Math.max(0, toNumber(shelf.cantidad_baldas, 0)));
     const ledCajones = normalizeLedCajones(shelf.cajones);
-    return Array.from({ length: count }, (_, index) => {
+    const shelfWidthCm = Math.max(1, toNumber(module.ancho_estante_cm, 100));
+    const occupiedWidthCm = ledCajones
+      .slice(0, count)
+      .reduce((sum, cajon) => sum + toNumber(cajon.ancho_cm, 0), 0);
+    const freeWidthCm = Math.max(0, shelfWidthCm - occupiedWidthCm);
+    const configuredRows = Array.from({ length: count }, (_, index) => {
       const position = index + 1;
       const assignment = assignments.get(makeAssignmentKey(shelf.modulo_id, shelf.numero, position))
         ?? null;
@@ -322,6 +327,8 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         sku: assignment?.sku ?? null,
         descripcion: assignment?.descripcion ?? null,
         capacidad: cubetas.reduce((sum, cubeta) => sum + toNumber(cubeta.capacidad, 0), 0),
+        ancho_cm: toNumber(ledCajon?.ancho_cm, count > 0 ? shelfWidthCm / count : shelfWidthCm),
+        shelf_width_cm: shelfWidthCm,
         cubetas,
         led_mapping: ledMapping,
         ubicacion: makeDisplayLocation(module, shelf.numero, position),
@@ -329,6 +336,38 @@ function buildShelfConfig({ modules, shelves, articles, almacenId }) {
         updated_at: [module.updated_at, shelf.updated_at, assignment?.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
       };
     });
+
+    if (count === 0 || freeWidthCm <= 0.001) return configuredRows;
+
+    return [
+      ...configuredRows,
+      {
+        id: `${shelf.id || makeShelfId(shelf.modulo_id, shelf.numero, 'row')}-free`,
+        almacen_id: almacenId,
+        modulo_id: shelf.modulo_id,
+        modulo: module.nombre || `Modulo ${module.orden ?? ''}`.trim(),
+        modulo_orden: toNumber(module.orden, 0),
+        estante_id: shelf.id,
+        estante: shelf.numero,
+        posicion: count + 1,
+        etiqueta_balda: '',
+        articulo_id: null,
+        codigo_articulo: null,
+        codigo_cliente: null,
+        sku_base: null,
+        sku: null,
+        descripcion: null,
+        capacidad: 0,
+        ancho_cm: freeWidthCm,
+        shelf_width_cm: shelfWidthCm,
+        cubetas: [],
+        led_mapping: null,
+        is_free_space: true,
+        ubicacion: '',
+        codigo_ubicacion: '',
+        updated_at: [module.updated_at, shelf.updated_at].filter(Boolean).sort().at(-1) ?? nowIso()
+      }
+    ];
   });
 }
 

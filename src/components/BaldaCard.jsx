@@ -7,6 +7,10 @@ function stateLabel(state) {
 }
 
 export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewMode = 'estado', pickLightStates = {} }) {
+  if (balda.is_free_space) {
+    return <article className={`sku-cell structural-free-space ${viewMode}`} aria-hidden="true" />;
+  }
+
   const cubetas = balda.cubetas?.length ? balda.cubetas : [balda];
   const hasArticle = cubetas.some((cubeta) => Boolean(cubeta.sku));
   const normalizedRole = String(operatorRole || 'operario').toLowerCase();

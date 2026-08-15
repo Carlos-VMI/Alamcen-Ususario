@@ -11,6 +11,7 @@ function groupBy(items, getKey) {
 }
 
 function stateClassForShelf(shelf, estadosById, pickLightStates = {}) {
+  if (shelf.is_free_space) return 'free-space';
   const cubetas = shelf.cubetas?.length ? shelf.cubetas : [shelf];
   if (!cubetas.some((cubeta) => cubeta.sku)) return 'unassigned';
   if (pickLightStates[shelf.id] === 'blinking') return 'pick-blinking';
@@ -19,8 +20,16 @@ function stateClassForShelf(shelf, estadosById, pickLightStates = {}) {
 }
 
 function stateClassForCubeta(cubeta, estadosById, pickLightStates = {}, shelfId = '') {
+  if (cubeta.is_free_space) return 'free-space';
   if (!cubeta.sku) return 'unassigned';
   return estadosById.get(cubeta.id) || 'lleno';
+}
+
+function gridTemplateForShelves(shelves) {
+  if (!shelves.length) return '1fr';
+  return shelves
+    .map((shelf) => `${Math.max(0.1, Number(shelf.ancho_cm) || 1)}fr`)
+    .join(' ');
 }
 
 function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode, pickLightStates = {}, compact = false }) {
@@ -39,9 +48,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
               <div
                 className="overview-row-cells"
                 style={{
-                  gridTemplateColumns: sortedShelves.length
-                    ? `repeat(${sortedShelves.length}, minmax(0, 1fr))`
-                    : '1fr'
+                  gridTemplateColumns: gridTemplateForShelves(sortedShelves)
                 }}
               >
                 {sortedShelves.map((shelf) => {
@@ -53,9 +60,9 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                     >
                       <span
                         className="overview-cubeta-grid"
-                        style={{ gridTemplateColumns: `repeat(${Math.max(1, cubetas.length)}, minmax(0, 1fr))` }}
+                        style={{ gridTemplateColumns: `repeat(${Math.max(1, cubetas.length || 1)}, minmax(0, 1fr))` }}
                       >
-                        {cubetas.map((cubeta, cubetaIndex) => (
+                        {(cubetas.length ? cubetas : [shelf]).map((cubeta, cubetaIndex) => (
                           <span
                             className={`overview-cubeta ${stateClassForCubeta(cubeta, estadosById, pickLightStates, shelf.id)}`}
                             key={cubeta.id || `${shelf.id}-${cubetaIndex}`}
@@ -91,7 +98,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                   <div
                     className="shelf-card-row"
                     style={{
-                      gridTemplateColumns: `repeat(${sortedShelves.length}, minmax(0, 1fr))`
+                      gridTemplateColumns: gridTemplateForShelves(sortedShelves)
                     }}
                   >
                     {sortedShelves.map((balda) => (
@@ -109,7 +116,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                   <div
                     className="shelf-column-bar"
                     style={{
-                      gridTemplateColumns: `repeat(${sortedShelves.length}, minmax(0, 1fr))`
+                      gridTemplateColumns: gridTemplateForShelves(sortedShelves)
                     }}
                   >
                     {sortedShelves.map((balda) => (
