@@ -498,7 +498,7 @@ main {
 .modules-overview {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fill, 10rem);
+  grid-template-columns: repeat(auto-fill, 300px);
   justify-content: start;
   max-height: calc(100vh - 104px);
   overflow: auto;
@@ -516,18 +516,18 @@ main {
   flex-direction: column;
   gap: 7px;
   flex-shrink: 0;
-  height: 8rem;
-  min-height: 8rem;
-  max-height: 8rem;
+  height: 220px;
+  min-height: 220px;
+  max-height: 220px;
   min-width: 0;
   justify-items: stretch;
   justify-content: flex-start;
   overflow: hidden;
   padding: 9px;
   text-align: center;
-  width: 10rem;
-  min-width: 10rem;
-  max-width: 10rem;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
 }
 
 .top-error,
@@ -558,10 +558,10 @@ main {
   cursor: default;
   display: flex;
   font-size: 12px;
-  height: 28px;
+  height: 32px;
   line-height: 1;
   max-width: 100%;
-  min-height: 28px;
+  min-height: 32px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -582,24 +582,28 @@ main {
 }
 
 .overview-module-grid {
+  align-self: center;
   display: grid;
   flex: 1 1 auto;
   gap: 2px;
-  margin-left: -28%;
-  margin-right: -28%;
+  grid-template-rows: repeat(8, minmax(0, 1fr));
   min-height: 0;
   overflow: hidden;
-  width: 156%;
+  transform: scale(0.9);
+  transform-origin: center;
+  width: 100%;
 }
 
 .overview-row {
-  min-height: 8px;
+  display: flex;
+  min-height: 0;
 }
 
 .overview-row-cells {
   display: grid;
+  flex: 1 1 auto;
   gap: 1px;
-  min-height: 8px;
+  min-height: 0;
 }
 
 .overview-cell {
@@ -607,7 +611,7 @@ main {
   border: 2px solid transparent;
   border-radius: 2px;
   display: block;
-  min-height: 8px;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -627,14 +631,14 @@ main {
   display: grid;
   gap: 0;
   height: 100%;
-  min-height: 8px;
+  min-height: 0;
   width: 100%;
 }
 
 .overview-cubeta {
   border: 0;
   display: block;
-  min-height: 8px;
+  min-height: 0;
 }
 
 .overview-cubeta.free-space {
@@ -1617,7 +1621,7 @@ main {
   }
 
   .modules-overview {
-    grid-template-columns: repeat(auto-fill, 10rem);
+    grid-template-columns: repeat(auto-fill, 300px);
     justify-content: start;
     max-height: none;
     order: -1;
