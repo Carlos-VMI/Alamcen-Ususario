@@ -498,7 +498,7 @@ main {
 .modules-overview {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, 260px);
   justify-content: start;
   max-height: calc(100vh - 104px);
   overflow: auto;
@@ -508,7 +508,7 @@ main {
 
 .overview-module {
   background: #fff;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: 8px;
   box-sizing: border-box;
   color: var(--ink);
@@ -523,7 +523,9 @@ main {
   overflow: hidden;
   padding: 9px;
   text-align: left;
-  width: 100%;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
 }
 
 .top-error,
@@ -1608,10 +1610,11 @@ main {
   }
 
   .modules-overview {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, 260px);
     justify-content: start;
     max-height: none;
     order: -1;
+    overflow-x: auto;
     position: static;
   }
 
