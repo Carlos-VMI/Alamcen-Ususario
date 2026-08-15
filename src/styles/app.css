@@ -578,8 +578,8 @@ main {
 }
 
 .overview-cell.free-space {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
+  background: transparent;
+  border-color: transparent;
 }
 
 .overview-cubeta-grid {
@@ -597,7 +597,7 @@ main {
 }
 
 .overview-cubeta.free-space {
-  background: #f1f5f9;
+  background: transparent;
 }
 
 .overview-cell.lleno,
@@ -694,6 +694,7 @@ main {
   box-shadow: 0 12px 30px rgba(31, 41, 51, 0.08);
   min-width: 0;
   padding: 0 8px 10px;
+  width: 100%;
 }
 
 .module-panel h2 {
@@ -984,16 +985,16 @@ main {
 }
 
 .sku-cell.structural-free-space {
-  background: #f3f4f6;
-  border: 1px dashed #d1d5db;
-  border-radius: 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   min-height: 50px;
   pointer-events: none;
   user-select: none;
 }
 
 .sku-cell.structural-free-space.items {
-  background: #f8fafc;
+  background: transparent;
 }
 
 .column-label {
