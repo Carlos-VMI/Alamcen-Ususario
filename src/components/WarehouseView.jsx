@@ -191,7 +191,9 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
             type="button"
             onClick={() => setActiveModuleName(moduleName)}
           >
-            <strong>{moduleName}</strong>
+            <strong>
+              <span>{moduleName}</span>
+            </strong>
             <ModulePanel
               moduleName={moduleName}
               shelves={shelves}
