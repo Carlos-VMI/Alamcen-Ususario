@@ -72,7 +72,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                     </span>
                   );
                 })}
-                {sortedShelves.length === 0 ? <span className="overview-cell unassigned" /> : null}
+                {sortedShelves.length === 0 ? <span className="overview-cell empty-structural" aria-hidden="true" /> : null}
               </div>
             </div>
           );
@@ -127,7 +127,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
                   </div>
                 </>
               ) : (
-                <span className="empty-row">Sin baldas configuradas</span>
+                <span className="empty-row" aria-hidden="true" />
               )}
             </div>
           </div>
