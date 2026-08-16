@@ -1,4 +1,15 @@
 const pedidoScriptUrl = import.meta.env.VITE_PEDIDO_SCRIPT_URL;
+const fallbackNotificationEmail = 'fontagnol@hotmail.com';
+
+async function getNotificationEmail(warehouse) {
+  try {
+    const { db } = await import('./db');
+    const settings = warehouse?.id ? await db.almacen_configuracion.get(warehouse.id) : null;
+    return settings?.notificacion_reposicion_email || fallbackNotificationEmail;
+  } catch {
+    return fallbackNotificationEmail;
+  }
+}
 
 export function buildPedidoRows(shelves, statesById) {
   return shelves
@@ -20,13 +31,15 @@ export async function sendPedidoEmail({ rows, warehouse, operator }) {
   if (!rows.length) return { sent: false, reason: 'empty' };
   if (!pedidoScriptUrl) throw new Error('Falta configurar VITE_PEDIDO_SCRIPT_URL');
 
+  const to = await getNotificationEmail(warehouse);
+
   const response = await fetch(pedidoScriptUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       type: 'pedido_reposicion',
       from: 'vmi.intelligent@gmail.com',
-      to: 'fontagnol@hotmail.com',
+      to,
       subject: `Pedido de reposicion - ${warehouse?.nombre || 'Almacen'}`,
       warehouse,
       operator,

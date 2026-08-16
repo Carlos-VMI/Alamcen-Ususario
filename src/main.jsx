@@ -512,11 +512,20 @@ function App() {
       }
     };
 
+    const applySettingsChange = async (payload) => {
+      try {
+        await syncService.applySettingsRealtimeChange(almacenId, payload);
+      } catch (error) {
+        console.error('Error aplicando cambio realtime de configuracion', error);
+      }
+    };
+
     const channel = supabase
       .channel('sync-almacen-original')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_articulos' }, applyArticleChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_modulos' }, applyModuleChange)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_estantes' }, applyShelfChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'almacen_configuracion' }, applySettingsChange)
       .subscribe((status) => {
         console.log('📡 Estado de Supabase Realtime:', status);
       });

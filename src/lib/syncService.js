@@ -379,12 +379,14 @@ export const syncService = {
       db.almacen_modulos,
       db.almacen_estantes,
       db.almacen_articulos,
+      db.almacen_configuracion,
       db.sync_metadata,
       async () => {
         await db.estanterias_config.clear();
         await db.almacen_modulos.clear();
         await db.almacen_estantes.clear();
         await db.almacen_articulos.clear();
+        await db.almacen_configuracion.clear();
         await db.sync_metadata.delete(configSyncKey(almacenId));
         await db.sync_metadata.delete(statesSyncKey(almacenId));
       }
@@ -488,6 +490,24 @@ export const syncService = {
     return this.rebuildShelfConfigFromLocalCache(almacenId);
   },
 
+  async applySettingsRealtimeChange(almacenId, payload) {
+    const eventType = payload.eventType;
+    const nextRow = payload.new;
+    const oldRow = payload.old;
+
+    if (eventType === 'DELETE') {
+      if (oldRow?.almacen_id === almacenId) await db.almacen_configuracion.delete(almacenId);
+      return;
+    }
+
+    if (nextRow?.almacen_id !== almacenId) return;
+
+    await db.almacen_configuracion.put(nextRow);
+    if (nextRow.updated_at) {
+      await setSyncMetadata(configSyncKey(almacenId), nextRow.updated_at);
+    }
+  },
+
   async downloadRemoteConfig(almacenId, { fullRefresh = false } = {}) {
     const lastSyncAt = fullRefresh ? null : await getSyncMetadata(configSyncKey(almacenId));
     const syncStartedAt = nowIso();
@@ -535,17 +555,29 @@ export const syncService = {
     const { data: articles, error: articlesError } = await withTimeout(articlesQuery, 'Descarga de articulos');
     if (articlesError) throw articlesError;
 
+    let settingsQuery = supabase
+      .from('almacen_configuracion')
+      .select('*')
+      .eq('almacen_id', almacenId);
+
+    if (lastSyncAt) settingsQuery = settingsQuery.gt('updated_at', lastSyncAt);
+
+    const { data: settings, error: settingsError } = await withTimeout(settingsQuery, 'Descarga de configuracion');
+    if (settingsError) throw settingsError;
+
     if (lastSyncAt) {
       await mergeRawConfig({
         modules: modules ?? [],
         shelves: shelves ?? [],
-        articles: articles ?? []
+        articles: articles ?? [],
+        settings: settings ?? []
       });
     } else {
       await replaceRawConfig({
         modules: modules ?? [],
         shelves: shelves ?? [],
-        articles: articles ?? []
+        articles: articles ?? [],
+        settings: settings ?? []
       });
     }
 

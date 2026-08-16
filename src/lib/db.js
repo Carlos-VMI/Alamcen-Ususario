@@ -40,6 +40,18 @@ db.version(4).stores({
   led_mappings: 'id, almacen_id, esp32Ip, channel, id_balda'
 });
 
+db.version(5).stores({
+  estanterias_config: 'id, almacen_id, modulo, estante, posicion, articulo_id, sku, updated_at',
+  estados_baldas: 'id_balda, estado, updated_at, synced_at',
+  cola_sincronizacion: '++id, tipo, entity_id, created_at, attempts',
+  almacen_modulos: 'id, almacen_id, orden, updated_at',
+  almacen_estantes: 'id, modulo_id, numero, updated_at',
+  almacen_articulos: 'id, almacen_id, sku, updated_at',
+  almacen_configuracion: 'almacen_id, updated_at',
+  sync_metadata: 'key',
+  led_mappings: 'id, almacen_id, esp32Ip, channel, id_balda'
+});
+
 async function enqueueStateChange(idBalda, estado, updatedAt) {
   const existing = await db.cola_sincronizacion
     .where('entity_id')
@@ -114,22 +126,25 @@ export async function replaceShelfConfig(configRows) {
   });
 }
 
-export async function replaceRawConfig({ modules, shelves, articles }) {
-  await db.transaction('rw', db.almacen_modulos, db.almacen_estantes, db.almacen_articulos, async () => {
+export async function replaceRawConfig({ modules, shelves, articles, settings = [] }) {
+  await db.transaction('rw', db.almacen_modulos, db.almacen_estantes, db.almacen_articulos, db.almacen_configuracion, async () => {
     await db.almacen_modulos.clear();
     await db.almacen_estantes.clear();
     await db.almacen_articulos.clear();
+    await db.almacen_configuracion.clear();
     if (modules.length) await db.almacen_modulos.bulkPut(modules);
     if (shelves.length) await db.almacen_estantes.bulkPut(shelves);
     if (articles.length) await db.almacen_articulos.bulkPut(articles);
+    if (settings.length) await db.almacen_configuracion.bulkPut(settings);
   });
 }
 
-export async function mergeRawConfig({ modules, shelves, articles }) {
-  await db.transaction('rw', db.almacen_modulos, db.almacen_estantes, db.almacen_articulos, async () => {
+export async function mergeRawConfig({ modules, shelves, articles, settings = [] }) {
+  await db.transaction('rw', db.almacen_modulos, db.almacen_estantes, db.almacen_articulos, db.almacen_configuracion, async () => {
     if (modules.length) await db.almacen_modulos.bulkPut(modules);
     if (shelves.length) await db.almacen_estantes.bulkPut(shelves);
     if (articles.length) await db.almacen_articulos.bulkPut(articles);
+    if (settings.length) await db.almacen_configuracion.bulkPut(settings);
   });
 }
 
