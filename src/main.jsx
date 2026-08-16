@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { LedControlPanel } from './components/LedControlPanel';
 import { PickToLightControls } from './components/PickToLightControls';
 import { StatusIndicator } from './components/StatusIndicator';
 import { WarehouseView } from './components/WarehouseView';
@@ -666,6 +667,7 @@ function App() {
               Items
             </button>
           </div>
+          <LedControlPanel userRole={operator?.rol} />
         </div>
         <div className="header-search-spacer" />
         <PickToLightControls

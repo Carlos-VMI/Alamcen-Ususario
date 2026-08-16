@@ -112,6 +112,22 @@ export const ledService = {
     return this.sendMappings(mappings, stateById);
   },
 
+  async turnOffAll() {
+    return this.syncAllWithColor('#000000');
+  },
+
+  async highlightAllSearch() {
+    return this.syncAllWithColor(STATE_COLORS.pick);
+  },
+
+  async syncAllWithColor(color) {
+    const mappings = (await this.readMappingsFromConfig()).map((mapping) => ({
+      ...mapping,
+      statusColor: color
+    }));
+    return this.sendMappings(mappings, new Map());
+  },
+
   async readMappingsFromConfig() {
     const rows = await db.estanterias_config.toArray();
     const mappings = [];
