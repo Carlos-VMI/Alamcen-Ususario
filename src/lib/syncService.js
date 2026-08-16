@@ -380,6 +380,7 @@ export const syncService = {
       db.almacen_estantes,
       db.almacen_articulos,
       db.almacen_configuracion,
+      db.almacen_notificacion_emails,
       db.sync_metadata,
       async () => {
         await db.estanterias_config.clear();
@@ -387,6 +388,7 @@ export const syncService = {
         await db.almacen_estantes.clear();
         await db.almacen_articulos.clear();
         await db.almacen_configuracion.clear();
+        await db.almacen_notificacion_emails.clear();
         await db.sync_metadata.delete(configSyncKey(almacenId));
         await db.sync_metadata.delete(statesSyncKey(almacenId));
       }
@@ -508,6 +510,24 @@ export const syncService = {
     }
   },
 
+  async applyNotificationEmailRealtimeChange(almacenId, payload) {
+    const eventType = payload.eventType;
+    const nextRow = payload.new;
+    const oldRow = payload.old;
+
+    if (eventType === 'DELETE') {
+      if (oldRow?.almacen_id === almacenId && oldRow?.id) await db.almacen_notificacion_emails.delete(oldRow.id);
+      return;
+    }
+
+    if (nextRow?.almacen_id !== almacenId) return;
+
+    await db.almacen_notificacion_emails.put(nextRow);
+    if (nextRow.updated_at) {
+      await setSyncMetadata(configSyncKey(almacenId), nextRow.updated_at);
+    }
+  },
+
   async downloadRemoteConfig(almacenId, { fullRefresh = false } = {}) {
     const lastSyncAt = fullRefresh ? null : await getSyncMetadata(configSyncKey(almacenId));
     const syncStartedAt = nowIso();
@@ -565,19 +585,32 @@ export const syncService = {
     const { data: settings, error: settingsError } = await withTimeout(settingsQuery, 'Descarga de configuracion');
     if (settingsError) throw settingsError;
 
+    let notificationEmailsQuery = supabase
+      .from('almacen_notificacion_emails')
+      .select('*')
+      .eq('almacen_id', almacenId)
+      .order('created_at', { ascending: true });
+
+    if (lastSyncAt) notificationEmailsQuery = notificationEmailsQuery.gt('updated_at', lastSyncAt);
+
+    const { data: notificationEmails, error: notificationEmailsError } = await withTimeout(notificationEmailsQuery, 'Descarga de correos');
+    if (notificationEmailsError) throw notificationEmailsError;
+
     if (lastSyncAt) {
       await mergeRawConfig({
         modules: modules ?? [],
         shelves: shelves ?? [],
         articles: articles ?? [],
-        settings: settings ?? []
+        settings: settings ?? [],
+        notificationEmails: notificationEmails ?? []
       });
     } else {
       await replaceRawConfig({
         modules: modules ?? [],
         shelves: shelves ?? [],
         articles: articles ?? [],
-        settings: settings ?? []
+        settings: settings ?? [],
+        notificationEmails: notificationEmails ?? []
       });
     }
 

@@ -1,9 +1,18 @@
 const pedidoScriptUrl = import.meta.env.VITE_PEDIDO_SCRIPT_URL;
 const fallbackNotificationEmail = 'fontagnol@hotmail.com';
 
-async function getNotificationEmail(warehouse) {
+async function getNotificationRecipients(warehouse) {
   try {
     const { db } = await import('./db');
+    const emails = warehouse?.id
+      ? await db.almacen_notificacion_emails.where('almacen_id').equals(warehouse.id).toArray()
+      : [];
+    const recipients = emails
+      .map((row) => String(row.email || '').trim())
+      .filter(Boolean);
+
+    if (recipients.length) return recipients.join(',');
+
     const settings = warehouse?.id ? await db.almacen_configuracion.get(warehouse.id) : null;
     return settings?.notificacion_reposicion_email || fallbackNotificationEmail;
   } catch {
@@ -31,7 +40,7 @@ export async function sendPedidoEmail({ rows, warehouse, operator }) {
   if (!rows.length) return { sent: false, reason: 'empty' };
   if (!pedidoScriptUrl) throw new Error('Falta configurar VITE_PEDIDO_SCRIPT_URL');
 
-  const to = await getNotificationEmail(warehouse);
+  const to = await getNotificationRecipients(warehouse);
 
   const response = await fetch(pedidoScriptUrl, {
     method: 'POST',
