@@ -320,10 +320,10 @@ main {
   text-shadow: 0 1px 4px rgba(2, 6, 23, 0.32);
 }
 
-.led-party-button:disabled {
-  cursor: wait;
-  filter: saturate(0.72);
-  opacity: 0.78;
+.led-party-button.running {
+  background: linear-gradient(135deg, #4f46e5, #c026d3 48%, #fd6a01);
+  border-color: rgba(253, 224, 71, 0.7);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.18), 0 10px 26px rgba(219, 39, 119, 0.26);
 }
 
 .led-control-note {

@@ -1,4 +1,4 @@
-import { Search, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ledService } from '../lib/ledService';
 
@@ -67,6 +67,7 @@ export function LedControlPanel({ userRole }) {
 
   const handleLedToggle = async (nextEnabled) => {
     setLedsEnabled(nextEnabled);
+    console.log({ accion: 'set_estados', valor: nextEnabled });
     try {
       if (nextEnabled) {
         await ledService.syncAllFromLocal();
@@ -80,6 +81,7 @@ export function LedControlPanel({ userRole }) {
 
   const handleSearchToggle = async (nextEnabled) => {
     setSearchEnabled(nextEnabled);
+    console.log({ accion: 'set_busqueda', valor: nextEnabled });
     try {
       if (nextEnabled) {
         await ledService.highlightAllSearch();
@@ -94,8 +96,15 @@ export function LedControlPanel({ userRole }) {
   };
 
   const handlePartyMode = () => {
-    if (sequenceRunning) return;
-    setSequenceRunning(true);
+    const nextRunning = !sequenceRunning;
+    console.log({ accion: 'set_fiesta', valor: nextRunning });
+    setSequenceRunning(nextRunning);
+  };
+
+  const handleBrightnessChange = (event) => {
+    const nextBrightness = Number(event.target.value);
+    setBrightness(nextBrightness);
+    console.log({ accion: 'set_brillo', valor: nextBrightness });
   };
 
   return (
@@ -127,7 +136,6 @@ export function LedControlPanel({ userRole }) {
           <div className="led-control-row">
             <ToggleSwitch
               checked={searchEnabled}
-              disabled={!ledsEnabled}
               label="Búsqueda"
               onChange={handleSearchToggle}
             />
@@ -142,7 +150,7 @@ export function LedControlPanel({ userRole }) {
               max="8"
               step="1"
               value={brightness}
-              onChange={(event) => setBrightness(Number(event.target.value))}
+              onChange={handleBrightnessChange}
               aria-label="Brillo de LEDs"
             />
             <div className="led-brightness-bars" aria-hidden="true">
@@ -157,19 +165,14 @@ export function LedControlPanel({ userRole }) {
           </label>
 
           <button
-            className="led-party-button"
+            className={`led-party-button ${sequenceRunning ? 'running' : ''}`}
             type="button"
-            disabled={sequenceRunning}
+            aria-pressed={sequenceRunning}
             onClick={handlePartyMode}
           >
             <Sparkles size={17} />
             {sequenceRunning ? 'Secuencia en curso...' : 'Modo Fiesta'}
           </button>
-
-          <p className="led-control-note">
-            <Search size={14} />
-            El modo búsqueda ilumina los tramos configurados en amarillo.
-          </p>
         </section>
       ) : null}
     </div>
