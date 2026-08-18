@@ -780,8 +780,13 @@ export const syncService = {
       .first();
 
     if (existing) {
+      if (existing.payload?.email_sent_at) return existing.id;
+
       return db.cola_sincronizacion.update(existing.id, {
-        payload,
+        payload: {
+          ...existing.payload,
+          ...payload
+        },
         attempts: 0,
         created_at: createdAt,
         last_error: null
@@ -1049,16 +1054,37 @@ export const syncService = {
       const rows = payload.rows || [];
       const pedidoId = payload.pedido_id || item.entity_id;
 
-      await withTimeout(
-        sendPedidoEmail({
-          rows,
-          warehouse: payload.warehouse,
-          operator: payload.operator,
-          pedidoId
-        }),
-        'Envio de correo de pedido',
-        30000
-      );
+      if (!payload.email_sent_at) {
+        await db.cola_sincronizacion.update(item.id, {
+          payload: {
+            ...payload,
+            email_status: 'sending',
+            email_started_at: nowIso()
+          }
+        });
+
+        const emailResult = await withTimeout(
+          sendPedidoEmail({
+            rows,
+            warehouse: payload.warehouse,
+            operator: payload.operator,
+            pedidoId
+          }),
+          'Envio de correo de pedido',
+          30000
+        );
+
+        await db.cola_sincronizacion.update(item.id, {
+          payload: {
+            ...payload,
+            email_status: 'sent',
+            email_sent_at: nowIso(),
+            email_result: emailResult
+          },
+          attempts: 0,
+          last_error: null
+        });
+      }
 
       const orderedRows = rows
         .filter((row) => row.id_balda)

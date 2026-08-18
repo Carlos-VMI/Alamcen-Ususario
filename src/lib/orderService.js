@@ -1,5 +1,4 @@
 const pedidoScriptUrl = import.meta.env.VITE_PEDIDO_SCRIPT_URL;
-const fallbackNotificationEmail = 'fontagnol@hotmail.com';
 
 async function getNotificationRecipients(warehouse) {
   try {
@@ -8,17 +7,20 @@ async function getNotificationRecipients(warehouse) {
       ? await db.almacen_notificacion_emails.where('almacen_id').equals(warehouse.id).toArray()
       : [];
     const recipients = emails
-      .filter((row) => row.activo !== false && (!row.categoria || row.categoria === 'reposicion'))
+      .filter((row) => row.activo !== false && (!row.categoria || String(row.categoria).toLowerCase() === 'reposicion'))
       .map((row) => String(row.email || '').trim())
       .filter(Boolean);
 
     if (recipients.length) return Array.from(new Set(recipients.map((email) => email.toLowerCase()))).join(',');
 
     const settings = warehouse?.id ? await db.almacen_configuracion.get(warehouse.id) : null;
-    return settings?.notificacion_reposicion_email || fallbackNotificationEmail;
-  } catch {
-    return fallbackNotificationEmail;
+    const legacyRecipient = String(settings?.notificacion_reposicion_email || '').trim();
+    if (legacyRecipient) return legacyRecipient;
+  } catch (error) {
+    console.warn('No se pudieron leer los destinatarios de reposicion', error);
   }
+
+  throw new Error('No hay correos activos de reposicion configurados para este almacen');
 }
 
 export function buildPedidoRows(shelves, statesById) {
@@ -73,6 +75,9 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
   }
 
   if (!response.ok || data?.error) {
+    if (String(data?.error || '').toLowerCase().includes('pedido en proceso')) {
+      return { sent: true, duplicate: true, processing: true, pedido_id: pedidoId };
+    }
     throw new Error(data?.error || `Error enviando pedido (${response.status})`);
   }
 

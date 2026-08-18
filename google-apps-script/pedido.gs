@@ -8,24 +8,33 @@ function doPost(e) {
 
     var pedidoId = String(data.pedido_id || '').trim();
     var cache = CacheService.getScriptCache();
+    var properties = PropertiesService.getScriptProperties();
     var cacheKey = pedidoId ? 'pedido_enviado_' + pedidoId : '';
+    var propertyKey = pedidoId ? 'pedido_enviado_' + pedidoId : '';
+    if (propertyKey && properties.getProperty(propertyKey) === 'sent') {
+      return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
+    }
+
     var cachedState = cacheKey ? cache.get(cacheKey) : '';
     if (cachedState === 'sent') {
       return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
     }
     if (cachedState === 'processing') {
-      return jsonResponse({ sent: false, error: 'Pedido en proceso' });
+      return jsonResponse({ sent: true, duplicate: true, processing: true, rows: rows.length });
     }
 
     var lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
+      if (propertyKey && properties.getProperty(propertyKey) === 'sent') {
+        return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
+      }
       cachedState = cacheKey ? cache.get(cacheKey) : '';
       if (cachedState === 'sent') {
         return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
       }
       if (cachedState === 'processing') {
-        return jsonResponse({ sent: false, error: 'Pedido en proceso' });
+        return jsonResponse({ sent: true, duplicate: true, processing: true, rows: rows.length });
       }
       if (cacheKey) {
         cache.put(cacheKey, 'processing', 600);
@@ -74,6 +83,9 @@ function doPost(e) {
 
     if (cacheKey) {
       cache.put(cacheKey, 'sent', 21600);
+    }
+    if (propertyKey) {
+      properties.setProperty(propertyKey, 'sent');
     }
 
     DriveApp.getFileById(spreadsheet.getId()).setTrashed(true);

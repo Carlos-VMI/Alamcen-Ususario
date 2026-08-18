@@ -165,7 +165,7 @@ export function useSyncManager(almacenId) {
     () => ({
       online,
       pendingCount,
-      isSyncing: autoSyncing || manualSyncing || configQuery.isFetching,
+      isSyncing: autoSyncing || manualSyncing,
       lastSyncError: manualSyncError || autoSyncError || configQuery.error?.message || null,
       lastSuccessfulSyncAt,
       configLoading: configQuery.isLoading,
@@ -180,7 +180,6 @@ export function useSyncManager(almacenId) {
       manualSyncing,
       manualSyncError,
       lastSuccessfulSyncAt,
-      configQuery.isFetching,
       configQuery.isLoading,
       configQuery.error,
       syncNow,

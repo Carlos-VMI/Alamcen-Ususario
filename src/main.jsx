@@ -605,6 +605,15 @@ function App() {
     try {
       if (!rows.length) return;
 
+      await syncService.updateManyShelfStates(
+        rows
+          .filter((row) => row.id_balda)
+          .map((row) => ({
+            id_balda: row.id_balda,
+            estado: 'pedido'
+          }))
+      );
+
       if (!combinedSync.online) {
         await syncService.enqueuePedidoEmail({
           rows,
