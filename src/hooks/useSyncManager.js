@@ -34,7 +34,7 @@ export function useSyncManager(almacenId) {
 
   const configQuery = useQuery({
     queryKey: ['remote-config', almacenId],
-    enabled: Boolean(almacenId) && online,
+    enabled: false,
     queryFn: () => syncService.downloadRemoteConfig(almacenId),
     staleTime: 60000,
     refetchOnWindowFocus: false

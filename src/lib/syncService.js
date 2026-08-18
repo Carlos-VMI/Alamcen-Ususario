@@ -57,6 +57,21 @@ function withTimeout(promise, label, timeoutMs = SYNC_TIMEOUT_MS) {
   });
 }
 
+function makeQueueStateItem(row, updatedAt = nowIso()) {
+  return {
+    tipo: 'estado_balda.updated',
+    entity_id: row.id_balda,
+    payload: {
+      id_balda: row.id_balda,
+      estado: row.estado,
+      updated_at: row.updated_at || updatedAt
+    },
+    attempts: 0,
+    created_at: updatedAt,
+    last_error: null
+  };
+}
+
 function configSyncKey(almacenId) {
   return `remote_config_synced_at:${almacenId}`;
 }
@@ -754,6 +769,7 @@ export const syncService = {
       warehouse,
       operator,
       reason,
+      pedido_id: entityId,
       created_at: createdAt
     };
 
@@ -1030,21 +1046,60 @@ export const syncService = {
 
     if (item.tipo === 'pedido.email') {
       const payload = item.payload || {};
-      await sendPedidoEmail({
-        rows: payload.rows || [],
-        warehouse: payload.warehouse,
-        operator: payload.operator
-      });
+      const rows = payload.rows || [];
+      const pedidoId = payload.pedido_id || item.entity_id;
 
-      const orderedRows = (payload.rows || [])
+      await withTimeout(
+        sendPedidoEmail({
+          rows,
+          warehouse: payload.warehouse,
+          operator: payload.operator,
+          pedidoId
+        }),
+        'Envio de correo de pedido',
+        30000
+      );
+
+      const orderedRows = rows
         .filter((row) => row.id_balda)
         .map((row) => ({
           id_balda: row.id_balda,
-          estado: SHELF_STATES.ORDERED
+          estado: SHELF_STATES.ORDERED,
+          updated_at: nowIso()
         }));
 
       if (orderedRows.length) {
-        await this.updateManyShelfStates(orderedRows);
+        const syncedAt = nowIso();
+        const queueStateItems = orderedRows.map((row) => makeQueueStateItem(row, row.updated_at));
+
+        await db.estados_baldas.bulkPut(
+          orderedRows.map((row) => ({
+            id_balda: row.id_balda,
+            estado: row.estado,
+            updated_at: row.updated_at,
+            synced_at: null
+          }))
+        );
+
+        try {
+          const syncedStateItems = await this.syncStateItemsToArticles(queueStateItems);
+          await db.estados_baldas.bulkPut(
+            syncedStateItems.map((stateItem) => ({
+              id_balda: stateItem.payload.id_balda,
+              estado: stateItem.payload.estado,
+              updated_at: stateItem.payload.updated_at,
+              synced_at: syncedAt
+            }))
+          );
+        } catch (error) {
+          for (const stateItem of queueStateItems) {
+            await this.enqueue(stateItem);
+          }
+        }
+
+        await ledService.syncShelvesByIds(orderedRows.map((row) => row.id_balda)).catch((error) => {
+          console.warn('No se pudieron actualizar LEDs fisicos tras pedido', error);
+        });
       }
       return;
     }

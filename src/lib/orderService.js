@@ -37,19 +37,26 @@ export function buildPedidoRows(shelves, statesById) {
     }));
 }
 
-export async function sendPedidoEmail({ rows, warehouse, operator }) {
+export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
   if (!rows.length) return { sent: false, reason: 'empty' };
   if (!pedidoScriptUrl) throw new Error('Falta configurar VITE_PEDIDO_SCRIPT_URL');
 
   const to = await getNotificationRecipients(warehouse);
+  const recipients = Array.from(new Set(
+    String(to)
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+  ));
 
   const response = await fetch(pedidoScriptUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       type: 'pedido_reposicion',
+      pedido_id: pedidoId,
       from: 'vmi.intelligent@gmail.com',
-      to,
+      to: recipients.join(','),
       subject: `Pedido de reposicion - ${warehouse?.nombre || 'Almacen'}`,
       warehouse,
       operator,

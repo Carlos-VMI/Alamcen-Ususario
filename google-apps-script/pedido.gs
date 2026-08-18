@@ -6,6 +6,34 @@ function doPost(e) {
       return jsonResponse({ sent: false, error: 'Sin filas para enviar' });
     }
 
+    var pedidoId = String(data.pedido_id || '').trim();
+    var cache = CacheService.getScriptCache();
+    var cacheKey = pedidoId ? 'pedido_enviado_' + pedidoId : '';
+    var cachedState = cacheKey ? cache.get(cacheKey) : '';
+    if (cachedState === 'sent') {
+      return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
+    }
+    if (cachedState === 'processing') {
+      return jsonResponse({ sent: false, error: 'Pedido en proceso' });
+    }
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      cachedState = cacheKey ? cache.get(cacheKey) : '';
+      if (cachedState === 'sent') {
+        return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
+      }
+      if (cachedState === 'processing') {
+        return jsonResponse({ sent: false, error: 'Pedido en proceso' });
+      }
+      if (cacheKey) {
+        cache.put(cacheKey, 'processing', 600);
+      }
+    } finally {
+      lock.releaseLock();
+    }
+
     var spreadsheet = SpreadsheetApp.create('CTD_ES_pedido_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss'));
     var sheet = spreadsheet.getActiveSheet();
     sheet.setName('CTD_ES');
@@ -44,9 +72,16 @@ function doPost(e) {
       replyTo: data.from || 'vmi.intelligent@gmail.com'
     });
 
+    if (cacheKey) {
+      cache.put(cacheKey, 'sent', 21600);
+    }
+
     DriveApp.getFileById(spreadsheet.getId()).setTrashed(true);
-    return jsonResponse({ sent: true, rows: rows.length });
+    return jsonResponse({ sent: true, pedido_id: pedidoId, rows: rows.length });
   } catch (error) {
+    if (typeof cacheKey !== 'undefined' && cacheKey && typeof cache !== 'undefined' && cache) {
+      cache.remove(cacheKey);
+    }
     return jsonResponse({ sent: false, error: String(error && error.message ? error.message : error) });
   }
 }
