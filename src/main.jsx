@@ -663,11 +663,14 @@ function App() {
         rows,
         warehouse: source.warehouse || warehouseMeta,
         operator: source.operator || operator,
-        finalState: SHELF_STATES.FULL
+        finalState: SHELF_STATES.ORDERED
       });
       clearOfflinePedidoQueue();
       setOfflinePedidoCount(0);
-      setEstadoBoton('pedido');
+      setEstadoBoton('enviado');
+      window.setTimeout(() => {
+        setEstadoBoton((current) => (current === 'enviado' ? 'pedido' : current));
+      }, 1800);
     } catch (error) {
       console.warn('No se pudo sincronizar la cola offline de pedido', error);
       setEstadoBoton('pendiente');
@@ -729,9 +732,12 @@ function App() {
         rows,
         warehouse: warehouseMeta,
         operator,
-        finalState: SHELF_STATES.FULL
+        finalState: SHELF_STATES.ORDERED
       });
-      setEstadoBoton('pedido');
+      setEstadoBoton('enviado');
+      window.setTimeout(() => {
+        setEstadoBoton((current) => (current === 'enviado' ? 'pedido' : current));
+      }, 1800);
     } catch (error) {
       console.warn('No se pudo procesar el pedido', error);
       if (!navigator.onLine) {
@@ -774,7 +780,7 @@ function App() {
           title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
         >
           {estadoBoton === 'enviando' ? <span className="pedido-spinner" aria-hidden="true" /> : null}
-          {estadoBoton === 'enviando' ? 'Enviando...' : estadoBoton === 'pendiente' ? 'Pendiente' : 'Pedido'}
+          {estadoBoton === 'enviando' ? 'Enviando...' : estadoBoton === 'pendiente' ? 'Pendiente' : estadoBoton === 'enviado' ? 'Enviado' : 'Pedido'}
           {estadoBoton === 'pendiente' && offlinePedidoCount > 0 ? (
             <span>{offlinePedidoCount}</span>
           ) : estadoBoton === 'pedido' && pendingOrderCount > 0 ? (

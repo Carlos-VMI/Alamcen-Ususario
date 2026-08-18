@@ -15,7 +15,7 @@ import { supabase } from './supabaseClient';
 export const SYNC_INTERVAL_MS = 7000;
 export const SYNC_BATCH_SIZE = 50;
 export const SYNC_TIMEOUT_MS = 18000;
-export const EMAIL_SEND_TIMEOUT_MS = 70000;
+export const EMAIL_SEND_TIMEOUT_MS = 25000;
 export const EMAIL_RETRY_DELAY_MS = 60000;
 export const EMAIL_SENDING_STALE_MS = 120000;
 export const SHELF_STATES = {
@@ -799,6 +799,13 @@ export const syncService = {
     });
   },
 
+  async updateManyShelfStatesLocal(items) {
+    await upsertShelfStates(items);
+    ledService.syncShelvesByIds(items.map((item) => item.id_balda)).catch((error) => {
+      console.warn('No se pudieron actualizar LEDs fisicos', error);
+    });
+  },
+
   async markPedidoRowsQueuedLocally(rows) {
     const orderedRows = rows
       .filter((row) => row.id_balda)
@@ -863,12 +870,13 @@ export const syncService = {
       }));
 
     if (orderedRows.length) {
-      await this.updateManyShelfStates(orderedRows);
-      try {
-        await this.flushPendingQueue();
-      } catch (error) {
-        console.warn('El correo fue enviado, pero quedo pendiente sincronizar estados', error);
-      }
+      await this.updateManyShelfStatesLocal(orderedRows);
+
+      window.setTimeout(() => {
+        this.flushPendingQueue().catch((error) => {
+          console.warn('El correo fue enviado, pero quedo pendiente sincronizar estados', error);
+        });
+      }, 0);
     }
 
     return { ...emailResult, pedido_id: pedidoId, ordered: orderedRows.length };
