@@ -948,6 +948,10 @@ main {
   opacity: 0.48;
 }
 
+.pedido-button[aria-disabled="true"] {
+  cursor: default;
+}
+
 .pedido-button span {
   align-items: center;
   background: rgba(255, 255, 255, 0.22);
@@ -959,6 +963,24 @@ main {
   justify-content: center;
   min-width: 20px;
   padding: 0 6px;
+}
+
+.pedido-spinner {
+  animation: pedidoSpin 0.8s linear infinite;
+  background: transparent !important;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  border-top-color: #fff;
+  height: 15px !important;
+  min-width: 15px !important;
+  padding: 0 !important;
+  width: 15px;
+}
+
+@keyframes pedidoSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .warehouse-view {

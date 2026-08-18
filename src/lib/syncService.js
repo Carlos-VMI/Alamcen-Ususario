@@ -834,7 +834,7 @@ export const syncService = {
     return rows.length;
   },
 
-  async sendPedidoNow({ rows, warehouse, operator }) {
+  async sendPedidoNow({ rows, warehouse, operator, finalState = SHELF_STATES.ORDERED }) {
     if (!rows.length) return { sent: false, reason: 'empty' };
     if (!navigator.onLine) throw new Error('Sin conexion: no se pudo enviar el correo de reposicion');
 
@@ -858,7 +858,7 @@ export const syncService = {
       .filter((row) => row.id_balda)
       .map((row) => ({
         id_balda: row.id_balda,
-        estado: SHELF_STATES.ORDERED,
+        estado: finalState,
         updated_at: nowIso()
       }));
 
@@ -1236,25 +1236,7 @@ export const syncService = {
     const otherItems = items.filter((item) => item.tipo !== 'estado_balda.updated' && item.tipo !== 'pedido.email');
 
     if (pedidoEmailItems.length) {
-      try {
-        const result = await this.syncPedidoEmailBatch(pedidoEmailItems);
-        synced += result.synced || 0;
-      } catch (error) {
-        await db.transaction('rw', db.cola_sincronizacion, async () => {
-          await Promise.allSettled(
-            pedidoEmailItems.map((item) => db.cola_sincronizacion.update(item.id, {
-              attempts: (item.attempts ?? 0) + 1,
-              last_error: errorMessage(error),
-              next_retry_at: addMsIso(EMAIL_RETRY_DELAY_MS),
-              payload: {
-                ...(item.payload || {}),
-                email_status: 'queued',
-                email_started_at: null
-              }
-            }))
-          );
-        });
-      }
+      await db.cola_sincronizacion.bulkDelete(pedidoEmailItems.map((item) => item.id));
     }
 
     if (stateItems.length) {

@@ -11,7 +11,7 @@ import { useSyncManager } from './hooks/useSyncManager';
 import { db } from './lib/db';
 import { ledService } from './lib/ledService';
 import { buildPedidoRows } from './lib/orderService';
-import { syncService } from './lib/syncService';
+import { SHELF_STATES, syncService } from './lib/syncService';
 import { supabase } from './lib/supabaseClient';
 import './styles/app.css';
 
@@ -24,6 +24,8 @@ console.log('[main.jsx] bundle cargado', {
 const ACTIVE_WAREHOUSE_KEY = 'almacen_id_activo';
 const ACTIVE_WAREHOUSE_META_KEY = 'almacen_activo_meta';
 const ACTIVE_OPERATOR_KEY = 'almacen_operario_activo';
+const OFFLINE_PEDIDOS_QUEUE_KEY = 'pedidos_offline_queue';
+const OFFLINE_PEDIDOS_POLL_MS = 7000;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +50,47 @@ function readJsonStorage(key) {
   } catch {
     return null;
   }
+}
+
+function readOfflinePedidoQueue() {
+  const value = readJsonStorage(OFFLINE_PEDIDOS_QUEUE_KEY);
+  return Array.isArray(value) ? value : [];
+}
+
+function writeOfflinePedidoQueue(queue) {
+  window.localStorage.setItem(OFFLINE_PEDIDOS_QUEUE_KEY, JSON.stringify(queue));
+}
+
+function clearOfflinePedidoQueue() {
+  window.localStorage.removeItem(OFFLINE_PEDIDOS_QUEUE_KEY);
+}
+
+function mergePedidoRows(rows) {
+  const byId = new Map();
+  for (const row of rows || []) {
+    const key = String(row.id_balda || row.sku || row.codigo_articulo || '').trim();
+    if (!key || byId.has(key)) continue;
+    byId.set(key, row);
+  }
+  return Array.from(byId.values());
+}
+
+function enqueueOfflinePedidoBatch({ rows, warehouse, operator }) {
+  const queue = readOfflinePedidoQueue();
+  const existingRows = queue.flatMap((item) => item.rows || []);
+  const mergedRows = mergePedidoRows([...existingRows, ...rows]);
+  const createdAt = new Date().toISOString();
+
+  writeOfflinePedidoQueue([{
+    id: `pedido-offline:${warehouse?.id || 'almacen'}`,
+    rows: mergedRows,
+    warehouse,
+    operator,
+    created_at: queue[0]?.created_at || createdAt,
+    updated_at: createdAt
+  }]);
+
+  return mergedRows.length;
 }
 
 function getStoredAlmacenId() {
@@ -91,6 +134,7 @@ function makeWarehouseMeta(warehouse) {
 }
 
 async function clearLocalWarehouseData() {
+  clearOfflinePedidoQueue();
   await db.transaction(
     'rw',
     db.estanterias_config,
@@ -419,17 +463,17 @@ function App() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [viewMode, setViewMode] = useState('estado');
   const [pickLightStates, setPickLightStates] = useState({});
-  const [pedidoSending, setPedidoSending] = useState(false);
-  const [pedidoSentFeedback, setPedidoSentFeedback] = useState(false);
+  const [estadoBoton, setEstadoBoton] = useState(() => (
+    readOfflinePedidoQueue().length ? 'pendiente' : 'pedido'
+  ));
+  const [offlinePedidoCount, setOfflinePedidoCount] = useState(() => (
+    mergePedidoRows(readOfflinePedidoQueue().flatMap((item) => item.rows || [])).length
+  ));
   const realtimeAlmacenRef = useRef(null);
   const pedidoActionLockRef = useRef(false);
+  const offlineQueueLockRef = useRef(false);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
-  const queuedPedidos = useLiveQuery(
-    () => db.cola_sincronizacion.where('tipo').equals('pedido.email').toArray(),
-    [],
-    []
-  );
   const sync = useSyncManager(almacenId);
   const supabaseSync = useSupabaseSync(almacenId);
   const handleManualSync = useCallback(async () => {
@@ -466,19 +510,16 @@ function App() {
       .filter((cubeta) => cubeta.sku && estadosById.get(cubeta.id) === 'vacio')
       .length
   ), [config, estadosById]);
-  const pendingPedidoCount = queuedPedidos.length;
-
-  useEffect(() => {
-    if (!pedidoSentFeedback) {
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setPedidoSentFeedback(false);
-    }, 3000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [pedidoSentFeedback]);
+  const refreshOfflinePedidoState = useCallback(() => {
+    const queue = readOfflinePedidoQueue();
+    const queuedRows = mergePedidoRows(queue.flatMap((item) => item.rows || []));
+    setOfflinePedidoCount(queuedRows.length);
+    setEstadoBoton((current) => {
+      if (current === 'enviando') return current;
+      return queuedRows.length ? 'pendiente' : 'pedido';
+    });
+    return { queue, queuedRows };
+  }, []);
 
   useEffect(() => {
     console.log('[Realtime useEffect] disparado', { almacenId });
@@ -602,40 +643,104 @@ function App() {
     setPendingAdminOperator(null);
   };
 
+  const processOfflinePedidoQueue = useCallback(async () => {
+    if (!navigator.onLine || offlineQueueLockRef.current) return;
+
+    const queue = readOfflinePedidoQueue();
+    const rows = mergePedidoRows(queue.flatMap((item) => item.rows || []));
+    if (!rows.length) {
+      clearOfflinePedidoQueue();
+      refreshOfflinePedidoState();
+      return;
+    }
+
+    offlineQueueLockRef.current = true;
+    setEstadoBoton('enviando');
+
+    try {
+      const source = queue.at(-1) || {};
+      await syncService.sendPedidoNow({
+        rows,
+        warehouse: source.warehouse || warehouseMeta,
+        operator: source.operator || operator,
+        finalState: SHELF_STATES.FULL
+      });
+      clearOfflinePedidoQueue();
+      setOfflinePedidoCount(0);
+      setEstadoBoton('pedido');
+    } catch (error) {
+      console.warn('No se pudo sincronizar la cola offline de pedido', error);
+      setEstadoBoton('pendiente');
+      refreshOfflinePedidoState();
+    } finally {
+      offlineQueueLockRef.current = false;
+    }
+  }, [operator, refreshOfflinePedidoState, warehouseMeta]);
+
+  useEffect(() => {
+    refreshOfflinePedidoState();
+  }, [refreshOfflinePedidoState]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      processOfflinePedidoQueue();
+    };
+    const intervalId = window.setInterval(() => {
+      if (navigator.onLine && readOfflinePedidoQueue().length) {
+        processOfflinePedidoQueue();
+      }
+    }, OFFLINE_PEDIDOS_POLL_MS);
+
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [processOfflinePedidoQueue]);
+
   const handlePedido = async () => {
-    if (viewMode !== 'estado' || pedidoSending || pedidoActionLockRef.current) return;
+    if (viewMode !== 'estado' || estadoBoton === 'enviando' || pedidoActionLockRef.current) return;
+
+    if (estadoBoton === 'pendiente' && offlinePedidoCount > 0) {
+      await processOfflinePedidoQueue();
+      return;
+    }
 
     pedidoActionLockRef.current = true;
-    setPedidoSentFeedback(false);
-    setPedidoSending(true);
     const rows = buildPedidoRows(config, estadosById);
 
     try {
       if (!rows.length) return;
 
-      if (!combinedSync.online) {
-        await syncService.enqueuePedidoEmail({
+      if (!navigator.onLine) {
+        setEstadoBoton('pendiente');
+        enqueueOfflinePedidoBatch({
           rows,
           warehouse: warehouseMeta,
-          operator,
-          reason: 'offline'
+          operator
         });
         await syncService.markPedidoRowsQueuedLocally(rows);
+        refreshOfflinePedidoState();
         return;
       }
 
-      await syncService.discardPendingPedidoEmails();
+      setEstadoBoton('enviando');
       await syncService.sendPedidoNow({
         rows,
         warehouse: warehouseMeta,
-        operator
+        operator,
+        finalState: SHELF_STATES.FULL
       });
-      setPedidoSentFeedback(true);
+      setEstadoBoton('pedido');
     } catch (error) {
       console.warn('No se pudo procesar el pedido', error);
+      if (!navigator.onLine) {
+        setEstadoBoton('pendiente');
+      } else {
+        setEstadoBoton(readOfflinePedidoQueue().length ? 'pendiente' : 'pedido');
+      }
     } finally {
       pedidoActionLockRef.current = false;
-      setPedidoSending(false);
     }
   };
 
@@ -665,11 +770,16 @@ function App() {
           className="pedido-button"
           type="button"
           onClick={handlePedido}
-          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pendingPedidoCount > 0 || pedidoSending}
+          aria-disabled={viewMode !== 'estado' || (pendingOrderCount === 0 && offlinePedidoCount === 0) || estadoBoton === 'enviando'}
           title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
         >
-          {pendingPedidoCount > 0 ? 'Pendiente' : pedidoSentFeedback ? 'Enviado' : 'Pedido'}
-          {pendingPedidoCount > 0 ? <span>{pendingPedidoCount}</span> : pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
+          {estadoBoton === 'enviando' ? <span className="pedido-spinner" aria-hidden="true" /> : null}
+          {estadoBoton === 'enviando' ? 'Enviando...' : estadoBoton === 'pendiente' ? 'Pendiente' : 'Pedido'}
+          {estadoBoton === 'pendiente' && offlinePedidoCount > 0 ? (
+            <span>{offlinePedidoCount}</span>
+          ) : estadoBoton === 'pedido' && pendingOrderCount > 0 ? (
+            <span>{pendingOrderCount}</span>
+          ) : null}
         </button>
         <div className="app-header-actions">
           <div className="view-toggle" role="group" aria-label="Vista">
