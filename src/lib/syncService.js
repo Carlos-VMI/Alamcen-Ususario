@@ -652,8 +652,6 @@ export const syncService = {
       .eq('almacen_id', almacenId)
       .order('created_at', { ascending: true });
 
-    if (lastSyncAt) notificationEmailsQuery = notificationEmailsQuery.gt('updated_at', lastSyncAt);
-
     const { data: notificationEmails, error: notificationEmailsError } = await withTimeout(notificationEmailsQuery, 'Descarga de correos');
     if (notificationEmailsError) throw notificationEmailsError;
 
@@ -663,7 +661,11 @@ export const syncService = {
         shelves: shelves ?? [],
         articles: articles ?? [],
         settings: settings ?? [],
-        notificationEmails: notificationEmails ?? []
+        notificationEmails: []
+      });
+      await db.transaction('rw', db.almacen_notificacion_emails, async () => {
+        await db.almacen_notificacion_emails.where('almacen_id').equals(almacenId).delete();
+        if (notificationEmails?.length) await db.almacen_notificacion_emails.bulkPut(notificationEmails);
       });
     } else {
       await replaceRawConfig({

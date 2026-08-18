@@ -1,21 +1,114 @@
+import { db } from './db';
+import { supabase } from './supabaseClient';
+
 const pedidoScriptUrl = import.meta.env.VITE_PEDIDO_SCRIPT_URL;
 
+function isActiveRecipient(row) {
+  const value = row?.activo;
+  if (value === false || value === 0) return false;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return !['false', '0', 'bloqueado', 'blocked', 'inactivo', 'inactive'].includes(normalized);
+  }
+  return true;
+}
+
+function isReposicionRecipient(row) {
+  const category = String(row?.categoria || 'reposicion').trim().toLowerCase();
+  return category === 'reposicion';
+}
+
+function normalizeRecipients(rows) {
+  return Array.from(new Set(
+    (rows || [])
+      .filter((row) => isActiveRecipient(row) && isReposicionRecipient(row))
+      .map((row) => String(row.email || '').trim().toLowerCase())
+      .filter(Boolean)
+  ));
+}
+
+async function readLocalRecipients(warehouseId) {
+  if (!warehouseId) return [];
+
+  const emails = await db.almacen_notificacion_emails
+    .where('almacen_id')
+    .equals(warehouseId)
+    .toArray();
+
+  return normalizeRecipients(emails);
+}
+
+async function fetchRemoteRecipients(warehouseId) {
+  if (!warehouseId || !navigator.onLine) return [];
+
+  const { data, error } = await supabase
+    .from('almacen_notificacion_emails')
+    .select('id, almacen_id, categoria, email, activo, created_at, updated_at')
+    .eq('almacen_id', warehouseId)
+    .eq('categoria', 'reposicion');
+
+  if (error) {
+    console.warn('[Pedido] No se pudieron leer correos de reposicion desde Supabase', error);
+    return [];
+  }
+
+  if (Array.isArray(data)) {
+    await db.transaction('rw', db.almacen_notificacion_emails, async () => {
+      await db.almacen_notificacion_emails
+        .where('almacen_id')
+        .equals(warehouseId)
+        .and((row) => isReposicionRecipient(row))
+        .delete();
+      if (data.length) await db.almacen_notificacion_emails.bulkPut(data);
+    });
+  }
+
+  return normalizeRecipients(data);
+}
+
+async function readLegacyRecipient(warehouseId) {
+  if (!warehouseId) return [];
+
+  const settings = await db.almacen_configuracion.get(warehouseId);
+  const localEmail = String(settings?.notificacion_reposicion_email || '').trim().toLowerCase();
+  if (localEmail) return [localEmail];
+
+  if (!navigator.onLine) return [];
+
+  const { data, error } = await supabase
+    .from('almacen_configuracion')
+    .select('almacen_id, notificacion_reposicion_email, updated_at')
+    .eq('almacen_id', warehouseId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[Pedido] No se pudo leer configuracion legacy de reposicion', error);
+    return [];
+  }
+
+  if (data?.almacen_id) {
+    await db.almacen_configuracion.put(data);
+  }
+
+  const remoteEmail = String(data?.notificacion_reposicion_email || '').trim().toLowerCase();
+  return remoteEmail ? [remoteEmail] : [];
+}
+
 async function getNotificationRecipients(warehouse) {
+  const warehouseId = warehouse?.id || warehouse?.almacen_id;
+  if (!warehouseId) {
+    throw new Error('No se pudo identificar el almacen activo para leer correos de reposicion');
+  }
+
   try {
-    const { db } = await import('./db');
-    const emails = warehouse?.id
-      ? await db.almacen_notificacion_emails.where('almacen_id').equals(warehouse.id).toArray()
-      : [];
-    const recipients = emails
-      .filter((row) => row.activo !== false && (!row.categoria || String(row.categoria).toLowerCase() === 'reposicion'))
-      .map((row) => String(row.email || '').trim())
-      .filter(Boolean);
+    const localRecipients = await readLocalRecipients(warehouseId);
+    if (localRecipients.length) return localRecipients.join(',');
 
-    if (recipients.length) return Array.from(new Set(recipients.map((email) => email.toLowerCase()))).join(',');
+    const remoteRecipients = await fetchRemoteRecipients(warehouseId);
+    if (remoteRecipients.length) return remoteRecipients.join(',');
 
-    const settings = warehouse?.id ? await db.almacen_configuracion.get(warehouse.id) : null;
-    const legacyRecipient = String(settings?.notificacion_reposicion_email || '').trim();
-    if (legacyRecipient) return legacyRecipient;
+    const legacyRecipients = await readLegacyRecipient(warehouseId);
+    if (legacyRecipients.length) return legacyRecipients.join(',');
   } catch (error) {
     console.warn('No se pudieron leer los destinatarios de reposicion', error);
   }
