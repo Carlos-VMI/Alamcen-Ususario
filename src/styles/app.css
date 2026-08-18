@@ -719,7 +719,9 @@ main {
 }
 
 .top-error,
-.top-notice {
+.top-notice,
+.top-warning,
+.top-success {
   background: var(--red-soft);
   border: 1px solid rgba(180, 35, 24, 0.22);
   border-radius: 8px;
@@ -734,6 +736,18 @@ main {
   background: #eff6ff;
   border-color: #bfdbfe;
   color: #1d4ed8;
+}
+
+.top-warning {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.top-success {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
 }
 
 .overview-module.active {

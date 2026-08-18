@@ -429,8 +429,10 @@ function App() {
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
+  const [pedidoNotice, setPedidoNotice] = useState(null);
   const realtimeAlmacenRef = useRef(null);
   const pedidoActionLockRef = useRef(false);
+  const previousPendingPedidoCountRef = useRef(0);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const queuedPedidos = useLiveQuery(
@@ -475,6 +477,28 @@ function App() {
       .length
   ), [config, estadosById]);
   const pendingPedidoCount = queuedPedidos.length;
+
+  useEffect(() => {
+    const previousCount = previousPendingPedidoCountRef.current;
+    previousPendingPedidoCountRef.current = pendingPedidoCount;
+
+    if (combinedSync.online && previousCount > 0 && pendingPedidoCount === 0) {
+      setPedidoNotice({
+        type: 'success',
+        message: 'Conexión restablecida. El pedido pendiente se envió correctamente.'
+      });
+
+      const timeoutId = window.setTimeout(() => {
+        setPedidoNotice((current) => (
+          current?.type === 'success' ? null : current
+        ));
+      }, 4500);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    return undefined;
+  }, [combinedSync.online, pendingPedidoCount]);
 
   useEffect(() => {
     console.log('[Realtime useEffect] disparado', { almacenId });
@@ -603,6 +627,7 @@ function App() {
 
     pedidoActionLockRef.current = true;
     setPedidoError('');
+    setPedidoNotice(null);
     setPedidoSending(true);
     const rows = buildPedidoRows(config, estadosById);
 
@@ -610,7 +635,17 @@ function App() {
       if (!rows.length) return;
 
       if (!combinedSync.online) {
-        setPedidoError('Sin conexion. El pedido no se envio.');
+        await syncService.enqueuePedidoEmail({
+          rows,
+          warehouse: warehouseMeta,
+          operator,
+          reason: 'offline'
+        });
+        await syncService.markPedidoRowsQueuedLocally(rows);
+        setPedidoNotice({
+          type: 'warning',
+          message: 'Estás sin conexión. El pedido se guardó en cola y se enviará automáticamente.'
+        });
         return;
       }
 
@@ -692,6 +727,11 @@ function App() {
 
       <main>
         {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
+        {pedidoNotice ? (
+          <div className={pedidoNotice.type === 'success' ? 'top-success' : 'top-warning'}>
+            {pedidoNotice.message}
+          </div>
+        ) : null}
         {combinedSync.configLoading && config.length === 0 ? (
           <section className="empty-state">
             <h2>Cargando configuracion...</h2>

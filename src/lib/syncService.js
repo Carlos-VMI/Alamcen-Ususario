@@ -799,6 +799,28 @@ export const syncService = {
     });
   },
 
+  async markPedidoRowsQueuedLocally(rows) {
+    const orderedRows = rows
+      .filter((row) => row.id_balda)
+      .map((row) => ({
+        id_balda: row.id_balda,
+        estado: SHELF_STATES.ORDERED,
+        updated_at: nowIso(),
+        synced_at: null,
+        pending_sync: true,
+        pending_reason: 'pedido.email'
+      }));
+
+    if (!orderedRows.length) return 0;
+
+    await db.estados_baldas.bulkPut(orderedRows);
+    await ledService.syncShelvesByIds(orderedRows.map((row) => row.id_balda)).catch((error) => {
+      console.warn('No se pudieron actualizar LEDs fisicos del pedido en cola', error);
+    });
+
+    return orderedRows.length;
+  },
+
   async markEmptyShelvesAsOrdered(shelves, statesById) {
     const rows = shelves
       .flatMap((shelf) => shelf.cubetas?.length ? shelf.cubetas : [shelf])
@@ -1080,12 +1102,25 @@ export const syncService = {
     const items = (await db.cola_sincronizacion.orderBy('created_at').limit(limit).toArray())
       .filter((item) => isPastIso(item.next_retry_at));
     let synced = 0;
+    const pedidoEmailItems = items.filter((item) => item.tipo === 'pedido.email');
     const stateItems = items.filter((item) => item.tipo === 'estado_balda.updated');
-    const legacyPedidoEmailItems = items.filter((item) => item.tipo === 'pedido.email');
     const otherItems = items.filter((item) => item.tipo !== 'estado_balda.updated' && item.tipo !== 'pedido.email');
 
-    if (legacyPedidoEmailItems.length) {
-      await db.cola_sincronizacion.bulkDelete(legacyPedidoEmailItems.map((item) => item.id));
+    for (const item of pedidoEmailItems) {
+      try {
+        const result = await this.syncQueueItem(item);
+        if (result?.keep) {
+          continue;
+        }
+        await db.cola_sincronizacion.delete(item.id);
+        synced += 1;
+      } catch (error) {
+        await db.cola_sincronizacion.update(item.id, {
+          attempts: (item.attempts ?? 0) + 1,
+          last_error: errorMessage(error),
+          next_retry_at: addMsIso(EMAIL_RETRY_DELAY_MS)
+        });
+      }
     }
 
     if (stateItems.length) {
