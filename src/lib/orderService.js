@@ -12,7 +12,7 @@ async function getNotificationRecipients(warehouse) {
       .map((row) => String(row.email || '').trim())
       .filter(Boolean);
 
-    if (recipients.length) return recipients.join(',');
+    if (recipients.length) return Array.from(new Set(recipients.map((email) => email.toLowerCase()))).join(',');
 
     const settings = warehouse?.id ? await db.almacen_configuracion.get(warehouse.id) : null;
     return settings?.notificacion_reposicion_email || fallbackNotificationEmail;

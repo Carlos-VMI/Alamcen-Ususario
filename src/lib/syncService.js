@@ -66,6 +66,7 @@ function statesSyncKey(almacenId) {
 }
 
 const LEGACY_QUEUE_PURGE_KEY = 'legacy_estados_baldas_queue_purged_v1';
+let pendingQueueFlushPromise = null;
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -142,6 +143,22 @@ function makeDisplayLocation(module, shelfNumber, position) {
 
 function makeCompactLocation(module, shelfNumber, position) {
   return `M${toNumber(module.orden, 0)}E${shelfNumber}C${position}`;
+}
+
+function makePedidoEntityId(rows, warehouse) {
+  const warehouseId = warehouse?.id || 'almacen';
+  const rowKey = rows
+    .map((row) => String(row.id_balda || row.sku || row.codigo_articulo || row.ubicacion || '').trim())
+    .filter(Boolean)
+    .sort()
+    .join('|');
+
+  let hash = 0;
+  for (let index = 0; index < rowKey.length; index += 1) {
+    hash = ((hash << 5) - hash + rowKey.charCodeAt(index)) | 0;
+  }
+
+  return `pedido:${warehouseId}:${Math.abs(hash)}`;
 }
 
 function parseCoordinate(value) {
@@ -731,17 +748,35 @@ export const syncService = {
     if (!rows.length) return null;
 
     const createdAt = nowIso();
+    const entityId = makePedidoEntityId(rows, warehouse);
+    const payload = {
+      rows,
+      warehouse,
+      operator,
+      reason,
+      created_at: createdAt
+    };
+
+    const existing = await db.cola_sincronizacion
+      .where('entity_id')
+      .equals(entityId)
+      .and((item) => item.tipo === 'pedido.email')
+      .first();
+
+    if (existing) {
+      return db.cola_sincronizacion.update(existing.id, {
+        payload,
+        attempts: 0,
+        created_at: createdAt,
+        last_error: null
+      });
+    }
+
     return this.enqueue({
       tipo: 'pedido.email',
-      entity_id: `pedido:${warehouse?.id || 'almacen'}:${createdAt}`,
+      entity_id: entityId,
       created_at: createdAt,
-      payload: {
-        rows,
-        warehouse,
-        operator,
-        reason,
-        created_at: createdAt
-      }
+      payload
     });
   },
 
@@ -897,6 +932,16 @@ export const syncService = {
   },
 
   async flushPendingQueue({ limit = SYNC_BATCH_SIZE } = {}) {
+    if (pendingQueueFlushPromise) return pendingQueueFlushPromise;
+
+    pendingQueueFlushPromise = this.flushPendingQueueUnlocked({ limit }).finally(() => {
+      pendingQueueFlushPromise = null;
+    });
+
+    return pendingQueueFlushPromise;
+  },
+
+  async flushPendingQueueUnlocked({ limit = SYNC_BATCH_SIZE } = {}) {
     if (!navigator.onLine) return { synced: 0, skipped: 'offline' };
 
     const items = await db.cola_sincronizacion.orderBy('created_at').limit(limit).toArray();

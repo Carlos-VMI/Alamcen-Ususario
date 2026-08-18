@@ -426,6 +426,7 @@ function App() {
   const [pedidoSending, setPedidoSending] = useState(false);
   const [pedidoError, setPedidoError] = useState('');
   const realtimeAlmacenRef = useRef(null);
+  const pedidoActionLockRef = useRef(false);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const queuedPedidos = useLiveQuery(
@@ -594,8 +595,9 @@ function App() {
   };
 
   const handlePedido = async () => {
-    if (viewMode !== 'estado' || pedidoSending || pendingPedidoCount > 0) return;
+    if (viewMode !== 'estado' || pedidoSending || pendingPedidoCount > 0 || pedidoActionLockRef.current) return;
 
+    pedidoActionLockRef.current = true;
     setPedidoError('');
     setPedidoSending(true);
     const rows = buildPedidoRows(config, estadosById);
@@ -632,6 +634,7 @@ function App() {
         setPedidoError(error?.message || 'Error enviando pedido');
       }
     } finally {
+      pedidoActionLockRef.current = false;
       setPedidoSending(false);
     }
   };
