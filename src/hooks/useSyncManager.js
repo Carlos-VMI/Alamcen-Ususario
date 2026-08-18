@@ -66,7 +66,7 @@ export function useSyncManager(almacenId) {
 
   const syncNow = useCallback(async () => {
     if (syncLockRef.current) return;
-    if (!onlineRef.current || pendingCountRef.current === 0) return;
+    if ((!onlineRef.current && !navigator.onLine) || pendingCountRef.current === 0) return;
 
     syncLockRef.current = true;
     setAutoSyncing(true);
@@ -100,7 +100,7 @@ export function useSyncManager(almacenId) {
 
   const forceSync = useCallback(async () => {
     if (syncLockRef.current) return;
-    if (!onlineRef.current || !almacenIdRef.current) return;
+    if ((!onlineRef.current && !navigator.onLine) || !almacenIdRef.current) return;
 
     syncLockRef.current = true;
     setManualSyncing(true);

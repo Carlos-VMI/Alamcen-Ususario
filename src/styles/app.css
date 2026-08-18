@@ -576,23 +576,48 @@ main {
 
 .status-indicator {
   align-items: center;
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   display: inline-flex;
-  font-size: 12px;
+  flex: 0 0 auto;
+  font-size: 10px;
   font-weight: 800;
-  gap: 8px;
-  min-height: 36px;
+  height: 38px;
   justify-content: center;
-  min-width: 126px;
-  padding: 0 11px;
+  min-width: 38px;
+  padding: 0;
+  position: relative;
+  width: 38px;
   white-space: nowrap;
 }
 
 .status-indicator span {
-  display: inline-block;
+  align-items: center;
+  background: #f97316;
+  border: 2px solid var(--header);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 9px;
+  height: 17px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 17px;
+  padding: 0 4px;
+  position: absolute;
+  right: -5px;
   text-align: center;
-  width: 100%;
+  top: -5px;
+}
+
+.status-indicator svg {
+  fill: none;
+  height: 20px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 20px;
 }
 
 .status-indicator:disabled {
@@ -600,18 +625,18 @@ main {
 }
 
 .status-indicator.synced {
-  background: var(--green-soft);
-  color: var(--green);
+  background: rgba(220, 252, 231, 0.16);
+  color: #bbf7d0;
 }
 
 .status-indicator.pending {
-  background: #fff7ed;
-  color: #b45309;
+  background: rgba(254, 243, 199, 0.18);
+  color: #fde68a;
 }
 
 .status-indicator.syncing {
-  background: var(--blue-soft);
-  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.18);
+  color: #bfdbfe;
 }
 
 .status-indicator.syncing svg {
@@ -619,8 +644,8 @@ main {
 }
 
 .status-indicator.offline {
-  background: var(--red-soft);
-  color: var(--red);
+  background: rgba(254, 226, 226, 0.18);
+  color: #fecaca;
 }
 
 @keyframes spin {
@@ -865,6 +890,10 @@ main {
   background: var(--order);
 }
 
+.overview-cubeta.pendiente {
+  background: #f59e0b;
+}
+
 .overview-cell.pick-blinking {
   animation: pickMiniShelfBlink 0.65s ease-in-out infinite;
   background: #fff200;
@@ -901,11 +930,17 @@ main {
 }
 
 .pedido-button {
+  align-items: center;
   background: var(--order);
   border-color: #dd5d00;
   color: #fff;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
   min-height: 38px;
+  min-width: 132px;
   padding: 0 16px;
+  width: 132px;
 }
 
 .pedido-button:disabled {
@@ -1285,6 +1320,12 @@ main {
 .cubeta-card.pedido {
   background: linear-gradient(180deg, #ff8b32, var(--order));
   border-color: rgba(157, 62, 0, 0.44);
+  color: #fff;
+}
+
+.cubeta-card.pendiente {
+  background: linear-gradient(180deg, #fbbf24, #d97706);
+  border-color: rgba(146, 64, 14, 0.5);
   color: #fff;
 }
 

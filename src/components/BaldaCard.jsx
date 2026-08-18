@@ -1,9 +1,21 @@
 import { syncService } from '../lib/syncService';
 
 function stateLabel(state) {
+  if (state === 'pendiente') return 'Pendiente';
   if (state === 'pedido') return 'Pedido';
   if (state === 'vacio') return 'Vacio';
   return 'Lleno';
+}
+
+function getStateRow(estadosById, id) {
+  const value = estadosById.get(id);
+  if (!value || typeof value === 'string') {
+    return { estado: value || 'lleno', pending_sync: false };
+  }
+  return {
+    estado: value.estado || 'lleno',
+    pending_sync: Boolean(value.pending_sync)
+  };
 }
 
 export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewMode = 'estado', pickLightStates = {} }) {
@@ -22,7 +34,8 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
   const handleCubetaClick = async (cubeta) => {
     if (!cubeta.sku) return;
 
-    const currentState = estadosById.get(cubeta.id) || 'lleno';
+    const { estado: currentState, pending_sync: pendingSync } = getStateRow(estadosById, cubeta.id);
+    if (pendingSync) return;
     if (currentState === 'pedido' && !canReplenish) return;
     if (currentState === 'pedido' && canReplenish) {
       await syncService.updateShelfState(cubeta.id, 'lleno');
@@ -56,8 +69,9 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
         style={{ gridTemplateColumns: `repeat(${Math.max(1, cubetas.length)}, minmax(0, 1fr))` }}
       >
         {cubetas.map((cubeta, index) => {
-          const currentState = estadosById.get(cubeta.id) || 'lleno';
-          const disabled = !cubeta.sku || (currentState === 'pedido' && !canReplenish);
+          const { estado: storedState, pending_sync: pendingSync } = getStateRow(estadosById, cubeta.id);
+          const currentState = pendingSync ? 'pendiente' : storedState;
+          const disabled = !cubeta.sku || pendingSync || (storedState === 'pedido' && !canReplenish);
           const suffix = cubeta.sufijo || String(index + 1).padStart(2, '0');
 
           return (
@@ -67,7 +81,7 @@ export function BaldaCard({ balda, estadosById, operatorRole = 'operario', viewM
               type="button"
               onClick={() => handleCubetaClick(cubeta)}
               disabled={disabled}
-              title={disabled && currentState === 'pedido' ? 'Pedido bloqueado hasta reposicion' : undefined}
+              title={pendingSync ? 'Pedido pendiente de conexión' : disabled && storedState === 'pedido' ? 'Pedido bloqueado hasta reposicion' : undefined}
             >
               <strong>{suffix}</strong>
               <small>{stateLabel(currentState)}</small>

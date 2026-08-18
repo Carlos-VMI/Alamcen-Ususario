@@ -25,14 +25,6 @@ const ACTIVE_WAREHOUSE_KEY = 'almacen_id_activo';
 const ACTIVE_WAREHOUSE_META_KEY = 'almacen_activo_meta';
 const ACTIVE_OPERATOR_KEY = 'almacen_operario_activo';
 
-function isNetworkFailure(error) {
-  const message = String(error?.message || error || '').toLowerCase();
-  return message.includes('failed to fetch')
-    || message.includes('networkerror')
-    || message.includes('load failed')
-    || message.includes('network request failed');
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -428,11 +420,9 @@ function App() {
   const [viewMode, setViewMode] = useState('estado');
   const [pickLightStates, setPickLightStates] = useState({});
   const [pedidoSending, setPedidoSending] = useState(false);
-  const [pedidoError, setPedidoError] = useState('');
-  const [pedidoNotice, setPedidoNotice] = useState(null);
+  const [pedidoSentFeedback, setPedidoSentFeedback] = useState(false);
   const realtimeAlmacenRef = useRef(null);
   const pedidoActionLockRef = useRef(false);
-  const previousPendingPedidoCountRef = useRef(0);
   const config = useLiveQuery(() => db.estanterias_config.toArray(), [], []);
   const estados = useLiveQuery(() => db.estados_baldas.toArray(), [], []);
   const queuedPedidos = useLiveQuery(
@@ -479,26 +469,16 @@ function App() {
   const pendingPedidoCount = queuedPedidos.length;
 
   useEffect(() => {
-    const previousCount = previousPendingPedidoCountRef.current;
-    previousPendingPedidoCountRef.current = pendingPedidoCount;
-
-    if (combinedSync.online && previousCount > 0 && pendingPedidoCount === 0) {
-      setPedidoNotice({
-        type: 'success',
-        message: 'Conexión restablecida. El pedido pendiente se envió correctamente.'
-      });
-
-      const timeoutId = window.setTimeout(() => {
-        setPedidoNotice((current) => (
-          current?.type === 'success' ? null : current
-        ));
-      }, 4500);
-
-      return () => window.clearTimeout(timeoutId);
+    if (!pedidoSentFeedback) {
+      return undefined;
     }
 
-    return undefined;
-  }, [combinedSync.online, pendingPedidoCount]);
+    const timeoutId = window.setTimeout(() => {
+      setPedidoSentFeedback(false);
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [pedidoSentFeedback]);
 
   useEffect(() => {
     console.log('[Realtime useEffect] disparado', { almacenId });
@@ -626,8 +606,7 @@ function App() {
     if (viewMode !== 'estado' || pedidoSending || pedidoActionLockRef.current) return;
 
     pedidoActionLockRef.current = true;
-    setPedidoError('');
-    setPedidoNotice(null);
+    setPedidoSentFeedback(false);
     setPedidoSending(true);
     const rows = buildPedidoRows(config, estadosById);
 
@@ -642,10 +621,6 @@ function App() {
           reason: 'offline'
         });
         await syncService.markPedidoRowsQueuedLocally(rows);
-        setPedidoNotice({
-          type: 'warning',
-          message: 'Estás sin conexión. El pedido se guardó en cola y se enviará automáticamente.'
-        });
         return;
       }
 
@@ -655,12 +630,9 @@ function App() {
         warehouse: warehouseMeta,
         operator
       });
+      setPedidoSentFeedback(true);
     } catch (error) {
-      setPedidoError(
-        isNetworkFailure(error)
-          ? 'No se pudo conectar con el servicio de correo. Revisa internet y la URL de Apps Script.'
-          : error?.message || 'Error enviando pedido'
-      );
+      console.warn('No se pudo procesar el pedido', error);
     } finally {
       pedidoActionLockRef.current = false;
       setPedidoSending(false);
@@ -693,11 +665,11 @@ function App() {
           className="pedido-button"
           type="button"
           onClick={handlePedido}
-          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending}
+          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pendingPedidoCount > 0 || pedidoSending}
           title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
         >
-          {pedidoSending ? 'Enviando' : 'Pedido'}
-          {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
+          {pendingPedidoCount > 0 ? 'Pendiente' : pedidoSentFeedback ? 'Enviado' : 'Pedido'}
+          {pendingPedidoCount > 0 ? <span>{pendingPedidoCount}</span> : pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
         </button>
         <div className="app-header-actions">
           <div className="view-toggle" role="group" aria-label="Vista">
@@ -726,12 +698,6 @@ function App() {
       </header>
 
       <main>
-        {pedidoError ? <div className="top-error">{pedidoError}</div> : null}
-        {pedidoNotice ? (
-          <div className={pedidoNotice.type === 'success' ? 'top-success' : 'top-warning'}>
-            {pedidoNotice.message}
-          </div>
-        ) : null}
         {combinedSync.configLoading && config.length === 0 ? (
           <section className="empty-state">
             <h2>Cargando configuracion...</h2>

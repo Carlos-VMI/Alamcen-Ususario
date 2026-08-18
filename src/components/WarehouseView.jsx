@@ -22,7 +22,10 @@ function stateClassForShelf(shelf, estadosById, pickLightStates = {}) {
 function stateClassForCubeta(cubeta, estadosById, pickLightStates = {}, shelfId = '') {
   if (cubeta.is_free_space) return 'free-space';
   if (!cubeta.sku) return 'unassigned';
-  return estadosById.get(cubeta.id) || 'lleno';
+  const stateRow = estadosById.get(cubeta.id);
+  if (stateRow?.pending_sync) return 'pendiente';
+  if (typeof stateRow === 'string') return stateRow || 'lleno';
+  return stateRow?.estado || 'lleno';
 }
 
 function gridTemplateForShelves(shelves) {
@@ -138,7 +141,7 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
 }
 
 export function WarehouseView({ config, estados, operatorRole = 'operario', viewMode = 'estado', pickLightStates = {} }) {
-  const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado.estado])), [estados]);
+  const estadosById = useMemo(() => new Map(estados.map((estado) => [estado.id_balda, estado])), [estados]);
   const moduleEntries = useMemo(() => (
     Object.entries(groupBy(config, (row) => row.modulo || 'Modulo 1'))
       .sort(([, shelvesA], [, shelvesB]) => {
