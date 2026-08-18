@@ -54,6 +54,12 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
       .filter(Boolean)
   ));
 
+  console.info('[Pedido] Enviando correo de reposicion', {
+    pedidoId,
+    destinatarios: recipients,
+    filas: rows.length
+  });
+
   const response = await fetch(pedidoScriptUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -82,8 +88,13 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
     if (String(data?.error || '').toLowerCase().includes('pedido en proceso')) {
       return { sent: false, duplicate: true, processing: true, pedido_id: pedidoId };
     }
-    throw new Error(data?.error || `Error enviando pedido (${response.status})`);
+    throw new Error(data?.error || data?.raw || `Error enviando pedido (${response.status})`);
   }
 
-  return data || { sent: true };
+  if (!data?.sent) {
+    throw new Error(data?.reason || 'Apps Script no confirmo el envio del pedido');
+  }
+
+  console.info('[Pedido] Correo confirmado', data);
+  return data;
 }

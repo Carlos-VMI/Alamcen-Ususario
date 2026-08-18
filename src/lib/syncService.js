@@ -195,6 +195,16 @@ function makePedidoEntityId(rows, warehouse) {
   return `pedido:${warehouseId}:${Math.abs(hash)}`;
 }
 
+function makeUniquePedidoId(rows, warehouse) {
+  const baseId = makePedidoEntityId(rows, warehouse);
+  const random =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  return `${baseId}:${random}`;
+}
+
 function parseCoordinate(value) {
   const text = String(value ?? '').toUpperCase();
   const match = text.match(/M(?:ODULO)?\s*0*(\d+)\s*E\s*0*(\d+)\s*C\s*0*(\d+)/i);
@@ -778,6 +788,59 @@ export const syncService = {
     return rows.length;
   },
 
+  async sendPedidoNow({ rows, warehouse, operator }) {
+    if (!rows.length) return { sent: false, reason: 'empty' };
+    if (!navigator.onLine) throw new Error('Sin conexion: no se pudo enviar el correo de reposicion');
+
+    const pedidoId = makeUniquePedidoId(rows, warehouse);
+    const emailResult = await withTimeout(
+      sendPedidoEmail({
+        rows,
+        warehouse,
+        operator,
+        pedidoId
+      }),
+      'Envio de correo de pedido',
+      EMAIL_SEND_TIMEOUT_MS
+    );
+
+    if (!emailResult?.sent) {
+      throw new Error(emailResult?.reason || 'El correo de reposicion no fue confirmado');
+    }
+
+    const orderedRows = rows
+      .filter((row) => row.id_balda)
+      .map((row) => ({
+        id_balda: row.id_balda,
+        estado: SHELF_STATES.ORDERED,
+        updated_at: nowIso()
+      }));
+
+    if (orderedRows.length) {
+      await this.updateManyShelfStates(orderedRows);
+      try {
+        await this.flushPendingQueue();
+      } catch (error) {
+        console.warn('El correo fue enviado, pero quedo pendiente sincronizar estados', error);
+      }
+    }
+
+    return { ...emailResult, pedido_id: pedidoId, ordered: orderedRows.length };
+  },
+
+  async discardPendingPedidoEmails() {
+    const items = await db.cola_sincronizacion
+      .where('tipo')
+      .equals('pedido.email')
+      .toArray();
+
+    if (items.length) {
+      await db.cola_sincronizacion.bulkDelete(items.map((item) => item.id));
+    }
+
+    return items.length;
+  },
+
   async enqueuePedidoEmail({ rows, warehouse, operator, reason = 'offline' }) {
     if (!rows.length) return null;
 
@@ -994,7 +1057,12 @@ export const syncService = {
       .filter((item) => isPastIso(item.next_retry_at));
     let synced = 0;
     const stateItems = items.filter((item) => item.tipo === 'estado_balda.updated');
-    const otherItems = items.filter((item) => item.tipo !== 'estado_balda.updated');
+    const legacyPedidoEmailItems = items.filter((item) => item.tipo === 'pedido.email');
+    const otherItems = items.filter((item) => item.tipo !== 'estado_balda.updated' && item.tipo !== 'pedido.email');
+
+    if (legacyPedidoEmailItems.length) {
+      await db.cola_sincronizacion.bulkDelete(legacyPedidoEmailItems.map((item) => item.id));
+    }
 
     if (stateItems.length) {
       try {

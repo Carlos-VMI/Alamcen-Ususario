@@ -599,7 +599,7 @@ function App() {
   };
 
   const handlePedido = async () => {
-    if (viewMode !== 'estado' || pedidoSending || pendingPedidoCount > 0 || pedidoActionLockRef.current) return;
+    if (viewMode !== 'estado' || pedidoSending || pedidoActionLockRef.current) return;
 
     pedidoActionLockRef.current = true;
     setPedidoError('');
@@ -609,43 +609,23 @@ function App() {
     try {
       if (!rows.length) return;
 
-      await syncService.updateManyShelfStates(
-        rows
-          .filter((row) => row.id_balda)
-          .map((row) => ({
-            id_balda: row.id_balda,
-            estado: 'pedido'
-          }))
-      );
-
       if (!combinedSync.online) {
-        await syncService.enqueuePedidoEmail({
-          rows,
-          warehouse: warehouseMeta,
-          operator,
-          reason: 'offline'
-        });
+        setPedidoError('Sin conexion. El pedido no se envio.');
         return;
       }
 
-      await syncService.enqueuePedidoEmail({
+      await syncService.discardPendingPedidoEmails();
+      await syncService.sendPedidoNow({
         rows,
         warehouse: warehouseMeta,
-        operator,
-        reason: 'manual'
+        operator
       });
-      await syncService.flushPendingQueue();
     } catch (error) {
-      if (isNetworkFailure(error)) {
-        await syncService.enqueuePedidoEmail({
-          rows,
-          warehouse: warehouseMeta,
-          operator,
-          reason: 'network-error'
-        });
-      } else {
-        setPedidoError(error?.message || 'Error enviando pedido');
-      }
+      setPedidoError(
+        isNetworkFailure(error)
+          ? 'No se pudo conectar con el servicio de correo. Revisa internet y la URL de Apps Script.'
+          : error?.message || 'Error enviando pedido'
+      );
     } finally {
       pedidoActionLockRef.current = false;
       setPedidoSending(false);
@@ -678,11 +658,11 @@ function App() {
           className="pedido-button"
           type="button"
           onClick={handlePedido}
-          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending || pendingPedidoCount > 0}
+          disabled={viewMode !== 'estado' || pendingOrderCount === 0 || pedidoSending}
           title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
         >
-          {pedidoSending ? 'Enviando' : pendingPedidoCount > 0 ? 'Pendiente' : 'Pedido'}
-          {pendingPedidoCount > 0 ? <span>{pendingPedidoCount}</span> : pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
+          {pedidoSending ? 'Enviando' : 'Pedido'}
+          {pendingOrderCount > 0 ? <span>{pendingOrderCount}</span> : null}
         </button>
         <div className="app-header-actions">
           <div className="view-toggle" role="group" aria-label="Vista">
