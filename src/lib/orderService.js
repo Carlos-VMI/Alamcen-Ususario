@@ -8,6 +8,7 @@ async function getNotificationRecipients(warehouse) {
       ? await db.almacen_notificacion_emails.where('almacen_id').equals(warehouse.id).toArray()
       : [];
     const recipients = emails
+      .filter((row) => !row.categoria || row.categoria === 'reposicion')
       .map((row) => String(row.email || '').trim())
       .filter(Boolean);
 
