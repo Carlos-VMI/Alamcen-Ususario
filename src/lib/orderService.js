@@ -158,11 +158,6 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
     body: JSON.stringify({
       type: 'pedido_reposicion',
       pedido_id: pedidoId,
-      pedido_fingerprint: rows
-        .map((row) => String(row.id_balda || row.sku || row.codigo_articulo || '').trim())
-        .filter(Boolean)
-        .sort()
-        .join('|'),
       from: 'vmi.intelligent@gmail.com',
       to: recipients.join(','),
       recipients,

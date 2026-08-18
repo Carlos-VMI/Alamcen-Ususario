@@ -841,11 +841,11 @@ export const syncService = {
     return rows.length;
   },
 
-  async sendPedidoNow({ rows, warehouse, operator, finalState = SHELF_STATES.ORDERED }) {
+  async sendPedidoNow({ rows, warehouse, operator, pedidoId: providedPedidoId, finalState = SHELF_STATES.ORDERED }) {
     if (!rows.length) return { sent: false, reason: 'empty' };
     if (!navigator.onLine) throw new Error('Sin conexion: no se pudo enviar el correo de reposicion');
 
-    const pedidoId = makeUniquePedidoId(rows, warehouse);
+    const pedidoId = providedPedidoId || makeUniquePedidoId(rows, warehouse);
     const emailResult = await withTimeout(
       sendPedidoEmail({
         rows,
@@ -945,7 +945,7 @@ export const syncService = {
     if (!rows.length) return null;
 
     const createdAt = nowIso();
-    const entityId = makePedidoEntityId(rows, warehouse);
+    const entityId = makeUniquePedidoId(rows, warehouse);
     const payload = {
       rows,
       warehouse,

@@ -80,9 +80,12 @@ function enqueueOfflinePedidoBatch({ rows, warehouse, operator }) {
   const existingRows = queue.flatMap((item) => item.rows || []);
   const mergedRows = mergePedidoRows([...existingRows, ...rows]);
   const createdAt = new Date().toISOString();
+  const pedidoId = queue.find((item) => item.pedidoId)?.pedidoId
+    || `pedido-offline:${warehouse?.id || 'almacen'}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 
   writeOfflinePedidoQueue([{
     id: `pedido-offline:${warehouse?.id || 'almacen'}`,
+    pedidoId,
     rows: mergedRows,
     warehouse,
     operator,
@@ -663,6 +666,7 @@ function App() {
         rows,
         warehouse: source.warehouse || warehouseMeta,
         operator: source.operator || operator,
+        pedidoId: source.pedidoId,
         finalState: SHELF_STATES.ORDERED
       });
       clearOfflinePedidoQueue();
