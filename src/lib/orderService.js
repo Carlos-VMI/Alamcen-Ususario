@@ -22,7 +22,7 @@ function normalizeRecipients(rows) {
   return Array.from(new Set(
     (rows || [])
       .filter((row) => isActiveRecipient(row) && isReposicionRecipient(row))
-      .map((row) => String(row.email || '').trim().toLowerCase())
+      .map((row) => String(row.email || row.correo || row.notificacion_reposicion_email || '').trim().toLowerCase())
       .filter(Boolean)
   ));
 }
@@ -43,9 +43,8 @@ async function fetchRemoteRecipients(warehouseId) {
 
   const { data, error } = await supabase
     .from('almacen_notificacion_emails')
-    .select('id, almacen_id, categoria, email, activo, created_at, updated_at')
-    .eq('almacen_id', warehouseId)
-    .eq('categoria', 'reposicion');
+    .select('*')
+    .eq('almacen_id', warehouseId);
 
   if (error) {
     console.warn('[Pedido] No se pudieron leer correos de reposicion desde Supabase', error);
@@ -159,6 +158,11 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
     body: JSON.stringify({
       type: 'pedido_reposicion',
       pedido_id: pedidoId,
+      pedido_fingerprint: rows
+        .map((row) => String(row.id_balda || row.sku || row.codigo_articulo || '').trim())
+        .filter(Boolean)
+        .sort()
+        .join('|'),
       from: 'vmi.intelligent@gmail.com',
       to: recipients.join(','),
       recipients,

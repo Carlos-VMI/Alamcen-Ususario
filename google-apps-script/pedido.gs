@@ -1,5 +1,6 @@
 function doPost(e) {
   var cacheKey = '';
+  var fingerprintCacheKey = '';
   var cache = null;
 
   try {
@@ -10,9 +11,11 @@ function doPost(e) {
     }
 
     var pedidoId = String(data.pedido_id || '').trim();
+    var pedidoFingerprint = String(data.pedido_fingerprint || '').trim();
     cache = CacheService.getScriptCache();
     var properties = PropertiesService.getScriptProperties();
     cacheKey = pedidoId ? 'pedido_enviado_' + pedidoId : '';
+    fingerprintCacheKey = pedidoFingerprint ? 'pedido_fingerprint_' + pedidoFingerprint : '';
     var propertyKey = pedidoId ? 'pedido_enviado_' + pedidoId : '';
 
     if (propertyKey && properties.getProperty(propertyKey) === 'sent') {
@@ -20,6 +23,13 @@ function doPost(e) {
     }
 
     var cachedState = cacheKey ? cache.get(cacheKey) : '';
+    var fingerprintState = fingerprintCacheKey ? cache.get(fingerprintCacheKey) : '';
+    if (fingerprintState === 'sent') {
+      return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
+    }
+    if (fingerprintState === 'processing') {
+      return jsonResponse({ sent: false, processing: true, error: 'Pedido en proceso' });
+    }
     if (cachedState === 'sent') {
       return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
     }
@@ -34,6 +44,13 @@ function doPost(e) {
         return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
       }
       cachedState = cacheKey ? cache.get(cacheKey) : '';
+      fingerprintState = fingerprintCacheKey ? cache.get(fingerprintCacheKey) : '';
+      if (fingerprintState === 'sent') {
+        return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
+      }
+      if (fingerprintState === 'processing') {
+        return jsonResponse({ sent: false, processing: true, error: 'Pedido en proceso' });
+      }
       if (cachedState === 'sent') {
         return jsonResponse({ sent: true, duplicate: true, rows: rows.length });
       }
@@ -42,6 +59,9 @@ function doPost(e) {
       }
       if (cacheKey) {
         cache.put(cacheKey, 'processing', 600);
+      }
+      if (fingerprintCacheKey) {
+        cache.put(fingerprintCacheKey, 'processing', 180);
       }
     } finally {
       lock.releaseLock();
@@ -69,6 +89,9 @@ function doPost(e) {
     if (cacheKey) {
       cache.put(cacheKey, 'sent', 21600);
     }
+    if (fingerprintCacheKey) {
+      cache.put(fingerprintCacheKey, 'sent', 180);
+    }
     if (propertyKey) {
       properties.setProperty(propertyKey, 'sent');
     }
@@ -77,6 +100,9 @@ function doPost(e) {
   } catch (error) {
     if (cacheKey && cache) {
       cache.remove(cacheKey);
+    }
+    if (fingerprintCacheKey && cache) {
+      cache.remove(fingerprintCacheKey);
     }
     return jsonResponse({ sent: false, error: String(error && error.message ? error.message : error) });
   }

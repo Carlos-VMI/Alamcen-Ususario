@@ -169,7 +169,9 @@ export async function readRawConfig(almacenId) {
   const moduleIds = new Set(modules.map((module) => module.id));
   const shelves = (await db.almacen_estantes.toArray()).filter((shelf) => moduleIds.has(shelf.modulo_id));
   const articles = await db.almacen_articulos.where('almacen_id').equals(almacenId).toArray();
-  return { modules, shelves, articles };
+  const settings = await db.almacen_configuracion.where('almacen_id').equals(almacenId).toArray();
+  const notificationEmails = await db.almacen_notificacion_emails.where('almacen_id').equals(almacenId).toArray();
+  return { modules, shelves, articles, settings, notificationEmails };
 }
 
 export async function getSyncMetadata(key) {

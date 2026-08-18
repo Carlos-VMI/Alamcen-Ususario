@@ -76,6 +76,20 @@ function withTimeout(promise, label, timeoutMs = SYNC_TIMEOUT_MS) {
   });
 }
 
+async function runOptionalQuery(query, label, fallback = []) {
+  try {
+    const { data, error } = await withTimeout(query, label);
+    if (error) {
+      console.warn(`[Sync] ${label} fallo; se continua con cache local`, error);
+      return fallback;
+    }
+    return data ?? fallback;
+  } catch (error) {
+    console.warn(`[Sync] ${label} fallo; se continua con cache local`, error);
+    return fallback;
+  }
+}
+
 function makeQueueStateItem(row, updatedAt = nowIso()) {
   return {
     tipo: 'estado_balda.updated',
@@ -457,8 +471,9 @@ export const syncService = {
   },
 
   async forceRefreshRemoteConfig(almacenId) {
-    await this.clearConfigCache(almacenId);
-    return this.downloadRemoteConfig(almacenId);
+    await db.sync_metadata.delete(configSyncKey(almacenId));
+    await db.sync_metadata.delete(statesSyncKey(almacenId));
+    return this.downloadRemoteConfig(almacenId, { fullRefresh: true });
   },
 
   async rebuildShelfConfigFromLocalCache(almacenId) {
@@ -636,24 +651,29 @@ export const syncService = {
     const { data: articles, error: articlesError } = await withTimeout(articlesQuery, 'Descarga de articulos');
     if (articlesError) throw articlesError;
 
-    let settingsQuery = supabase
+    const localCacheForOptionalTables = await readRawConfig(almacenId);
+
+    const settingsQuery = supabase
       .from('almacen_configuracion')
       .select('*')
       .eq('almacen_id', almacenId);
 
-    if (lastSyncAt) settingsQuery = settingsQuery.gt('updated_at', lastSyncAt);
+    const settings = await runOptionalQuery(
+      settingsQuery,
+      'Descarga de configuracion',
+      localCacheForOptionalTables.settings ?? []
+    );
 
-    const { data: settings, error: settingsError } = await withTimeout(settingsQuery, 'Descarga de configuracion');
-    if (settingsError) throw settingsError;
-
-    let notificationEmailsQuery = supabase
+    const notificationEmailsQuery = supabase
       .from('almacen_notificacion_emails')
       .select('*')
-      .eq('almacen_id', almacenId)
-      .order('created_at', { ascending: true });
+      .eq('almacen_id', almacenId);
 
-    const { data: notificationEmails, error: notificationEmailsError } = await withTimeout(notificationEmailsQuery, 'Descarga de correos');
-    if (notificationEmailsError) throw notificationEmailsError;
+    const notificationEmails = await runOptionalQuery(
+      notificationEmailsQuery,
+      'Descarga de correos',
+      localCacheForOptionalTables.notificationEmails ?? []
+    );
 
     if (lastSyncAt) {
       await mergeRawConfig({
@@ -663,17 +683,19 @@ export const syncService = {
         settings: settings ?? [],
         notificationEmails: []
       });
-      await db.transaction('rw', db.almacen_notificacion_emails, async () => {
-        await db.almacen_notificacion_emails.where('almacen_id').equals(almacenId).delete();
-        if (notificationEmails?.length) await db.almacen_notificacion_emails.bulkPut(notificationEmails);
-      });
+      if (Array.isArray(notificationEmails)) {
+        await db.transaction('rw', db.almacen_notificacion_emails, async () => {
+          await db.almacen_notificacion_emails.where('almacen_id').equals(almacenId).delete();
+          if (notificationEmails.length) await db.almacen_notificacion_emails.bulkPut(notificationEmails);
+        });
+      }
     } else {
       await replaceRawConfig({
         modules: modules ?? [],
         shelves: shelves ?? [],
         articles: articles ?? [],
         settings: settings ?? [],
-        notificationEmails: notificationEmails ?? []
+        notificationEmails: Array.isArray(notificationEmails) ? notificationEmails : []
       });
     }
 

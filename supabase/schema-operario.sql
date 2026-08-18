@@ -39,6 +39,30 @@ create table if not exists public.almacen_cubetas_catalogo (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.almacen_configuracion (
+  id uuid primary key default gen_random_uuid(),
+  almacen_id uuid not null references public.almacen_bases(id) on delete cascade,
+  notificacion_reposicion_email text,
+  enviar_reporte_orden boolean not null default true,
+  enviar_resumen_diario boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.almacen_notificacion_emails (
+  id uuid primary key default gen_random_uuid(),
+  almacen_id uuid not null references public.almacen_bases(id) on delete cascade,
+  categoria text not null default 'reposicion',
+  email text not null,
+  activo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.almacen_notificacion_emails
+  add column if not exists categoria text not null default 'reposicion',
+  add column if not exists activo boolean not null default true;
+
 -- Cada elemento de `sufijos` puede tomar esta forma:
 -- {
 --   "sufijo": "01",
@@ -61,5 +85,72 @@ create table if not exists public.almacen_cubetas_catalogo (
 --   "startLed": 0,
 --   "ledCount": 12
 -- }
+
+alter table public.almacen_bases enable row level security;
+alter table public.almacen_articulos enable row level security;
+alter table public.almacen_operadores enable row level security;
+alter table public.almacen_configuracion enable row level security;
+alter table public.almacen_notificacion_emails enable row level security;
+alter table public.almacen_modulos enable row level security;
+alter table public.almacen_estantes enable row level security;
+
+drop policy if exists "Lectura publica operario bases" on public.almacen_bases;
+drop policy if exists "Lectura publica operario articulos" on public.almacen_articulos;
+drop policy if exists "Actualizacion publica operario estados articulos" on public.almacen_articulos;
+drop policy if exists "Lectura publica operario operadores activos" on public.almacen_operadores;
+drop policy if exists "Lectura publica operario configuracion" on public.almacen_configuracion;
+drop policy if exists "Lectura publica de emails activos de reposicion" on public.almacen_notificacion_emails;
+drop policy if exists "Lectura publica operario modulos" on public.almacen_modulos;
+drop policy if exists "Lectura publica operario estantes" on public.almacen_estantes;
+
+create policy "Lectura publica operario bases"
+on public.almacen_bases for select
+to anon
+using (true);
+
+create policy "Lectura publica operario articulos"
+on public.almacen_articulos for select
+to anon
+using (true);
+
+create policy "Actualizacion publica operario estados articulos"
+on public.almacen_articulos for update
+to anon
+using (true)
+with check (true);
+
+create policy "Lectura publica operario operadores activos"
+on public.almacen_operadores for select
+to anon
+using (activo = true);
+
+create policy "Lectura publica operario configuracion"
+on public.almacen_configuracion for select
+to anon
+using (true);
+
+create policy "Lectura publica de emails activos de reposicion"
+on public.almacen_notificacion_emails for select
+to anon
+using (categoria = 'reposicion' and activo = true);
+
+create policy "Lectura publica operario modulos"
+on public.almacen_modulos for select
+to anon
+using (true);
+
+create policy "Lectura publica operario estantes"
+on public.almacen_estantes for select
+to anon
+using (true);
+
+grant select on public.almacen_bases to anon;
+grant select on public.almacen_articulos to anon;
+grant update (sufijos, updated_at) on public.almacen_articulos to anon;
+grant select on public.almacen_operadores to anon;
+grant select on public.almacen_configuracion to anon;
+grant select (id, almacen_id, categoria, email, activo, created_at, updated_at) on public.almacen_notificacion_emails to anon;
+grant select on public.almacen_modulos to anon;
+grant select on public.almacen_estantes to anon;
 
 notify pgrst, 'reload schema';
