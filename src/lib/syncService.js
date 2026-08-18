@@ -15,6 +15,9 @@ import { supabase } from './supabaseClient';
 export const SYNC_INTERVAL_MS = 15000;
 export const SYNC_BATCH_SIZE = 50;
 export const SYNC_TIMEOUT_MS = 18000;
+export const EMAIL_SEND_TIMEOUT_MS = 70000;
+export const EMAIL_RETRY_DELAY_MS = 60000;
+export const EMAIL_SENDING_STALE_MS = 120000;
 export const SHELF_STATES = {
   FULL: 'lleno',
   EMPTY: 'vacio',
@@ -23,6 +26,22 @@ export const SHELF_STATES = {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function addMsIso(ms) {
+  return new Date(Date.now() + ms).toISOString();
+}
+
+function isPastIso(value) {
+  if (!value) return true;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) || date.getTime() <= Date.now();
+}
+
+function isFreshIso(value, maxAgeMs) {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && Date.now() - date.getTime() < maxAgeMs;
 }
 
 function errorMessage(error) {
@@ -781,6 +800,12 @@ export const syncService = {
 
     if (existing) {
       if (existing.payload?.email_sent_at) return existing.id;
+      if (
+        ['sending', 'processing'].includes(existing.payload?.email_status)
+        && isFreshIso(existing.payload?.email_started_at, EMAIL_SENDING_STALE_MS)
+      ) {
+        return existing.id;
+      }
 
       return db.cola_sincronizacion.update(existing.id, {
         payload: {
@@ -788,7 +813,7 @@ export const syncService = {
           ...payload
         },
         attempts: 0,
-        created_at: createdAt,
+        created_at: existing.created_at || createdAt,
         last_error: null
       });
     }
@@ -965,7 +990,8 @@ export const syncService = {
   async flushPendingQueueUnlocked({ limit = SYNC_BATCH_SIZE } = {}) {
     if (!navigator.onLine) return { synced: 0, skipped: 'offline' };
 
-    const items = await db.cola_sincronizacion.orderBy('created_at').limit(limit).toArray();
+    const items = (await db.cola_sincronizacion.orderBy('created_at').limit(limit).toArray())
+      .filter((item) => isPastIso(item.next_retry_at));
     let synced = 0;
     const stateItems = items.filter((item) => item.tipo === 'estado_balda.updated');
     const otherItems = items.filter((item) => item.tipo !== 'estado_balda.updated');
@@ -1011,13 +1037,17 @@ export const syncService = {
 
     for (const item of otherItems) {
       try {
-        await this.syncQueueItem(item);
+        const result = await this.syncQueueItem(item);
+        if (result?.keep) {
+          continue;
+        }
         await db.cola_sincronizacion.delete(item.id);
         synced += 1;
       } catch (error) {
         await db.cola_sincronizacion.update(item.id, {
           attempts: (item.attempts ?? 0) + 1,
-          last_error: errorMessage(error)
+          last_error: errorMessage(error),
+          next_retry_at: addMsIso(EMAIL_RETRY_DELAY_MS)
         });
       }
     }
@@ -1054,13 +1084,22 @@ export const syncService = {
       const rows = payload.rows || [];
       const pedidoId = payload.pedido_id || item.entity_id;
 
+      if (
+        ['sending', 'processing'].includes(payload.email_status)
+        && isFreshIso(payload.email_started_at, EMAIL_SENDING_STALE_MS)
+      ) {
+        return { keep: true, reason: 'email_already_processing' };
+      }
+
       if (!payload.email_sent_at) {
+        const startedAt = nowIso();
         await db.cola_sincronizacion.update(item.id, {
           payload: {
             ...payload,
             email_status: 'sending',
-            email_started_at: nowIso()
-          }
+            email_started_at: startedAt
+          },
+          next_retry_at: addMsIso(EMAIL_SENDING_STALE_MS)
         });
 
         const emailResult = await withTimeout(
@@ -1071,8 +1110,22 @@ export const syncService = {
             pedidoId
           }),
           'Envio de correo de pedido',
-          30000
+          EMAIL_SEND_TIMEOUT_MS
         );
+
+        if (emailResult?.processing) {
+          await db.cola_sincronizacion.update(item.id, {
+            payload: {
+              ...payload,
+              email_status: 'processing',
+              email_started_at: startedAt,
+              email_result: emailResult
+            },
+            last_error: null,
+            next_retry_at: addMsIso(EMAIL_RETRY_DELAY_MS)
+          });
+          return { keep: true, reason: 'email_processing' };
+        }
 
         await db.cola_sincronizacion.update(item.id, {
           payload: {
@@ -1082,7 +1135,8 @@ export const syncService = {
             email_result: emailResult
           },
           attempts: 0,
-          last_error: null
+          last_error: null,
+          next_retry_at: null
         });
       }
 

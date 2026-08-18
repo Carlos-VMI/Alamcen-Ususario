@@ -42,6 +42,9 @@ export function buildPedidoRows(shelves, statesById) {
 export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
   if (!rows.length) return { sent: false, reason: 'empty' };
   if (!pedidoScriptUrl) throw new Error('Falta configurar VITE_PEDIDO_SCRIPT_URL');
+  if (pedidoScriptUrl.includes('api.example.com')) {
+    throw new Error('VITE_PEDIDO_SCRIPT_URL apunta a api.example.com; configura la URL real de Google Apps Script');
+  }
 
   const to = await getNotificationRecipients(warehouse);
   const recipients = Array.from(new Set(
@@ -59,6 +62,7 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
       pedido_id: pedidoId,
       from: 'vmi.intelligent@gmail.com',
       to: recipients.join(','),
+      recipients,
       subject: `Pedido de reposicion - ${warehouse?.nombre || 'Almacen'}`,
       warehouse,
       operator,
@@ -76,7 +80,7 @@ export async function sendPedidoEmail({ rows, warehouse, operator, pedidoId }) {
 
   if (!response.ok || data?.error) {
     if (String(data?.error || '').toLowerCase().includes('pedido en proceso')) {
-      return { sent: true, duplicate: true, processing: true, pedido_id: pedidoId };
+      return { sent: false, duplicate: true, processing: true, pedido_id: pedidoId };
     }
     throw new Error(data?.error || `Error enviando pedido (${response.status})`);
   }

@@ -107,6 +107,8 @@ async function clearLocalWarehouseData() {
     db.almacen_modulos,
     db.almacen_estantes,
     db.almacen_articulos,
+    db.almacen_configuracion,
+    db.almacen_notificacion_emails,
     db.sync_metadata,
     db.led_mappings,
     async () => {
@@ -116,6 +118,8 @@ async function clearLocalWarehouseData() {
       await db.almacen_modulos.clear();
       await db.almacen_estantes.clear();
       await db.almacen_articulos.clear();
+      await db.almacen_configuracion.clear();
+      await db.almacen_notificacion_emails.clear();
       await db.sync_metadata.clear();
       await db.led_mappings.clear();
     }

@@ -67,7 +67,10 @@ function doPost(e) {
       headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }
     }).getBlob().setContentType('application/vnd.ms-excel').setName('CTD_ES.xls');
 
-    var to = data.to || 'fontagnol@hotmail.com';
+    var to = String(data.to || '').trim();
+    if (!to) {
+      throw new Error('Pedido sin destinatarios de reposicion configurados');
+    }
     var subject = data.subject || 'Pedido de reposicion';
     var warehouseName = data.warehouse && data.warehouse.nombre ? data.warehouse.nombre : 'Almacen';
     var operatorName = data.operator && data.operator.nombre ? data.operator.nombre : 'Operario';
