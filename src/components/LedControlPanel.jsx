@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { Lightbulb, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ledService } from '../lib/ledService';
 
@@ -115,7 +115,8 @@ export function LedControlPanel({ userRole }) {
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
       >
-        💡 LEDs
+        <Lightbulb size={17} aria-hidden="true" />
+        LEDs
       </button>
 
       {open ? (
