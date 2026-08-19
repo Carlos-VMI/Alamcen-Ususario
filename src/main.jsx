@@ -674,7 +674,7 @@ function App() {
       setEstadoBoton('enviado');
       window.setTimeout(() => {
         setEstadoBoton((current) => (current === 'enviado' ? 'pedido' : current));
-      }, 3000);
+      }, 2000);
     } catch (error) {
       console.warn('No se pudo sincronizar la cola offline de pedido', error);
       setEstadoBoton('pendiente');
@@ -741,7 +741,7 @@ function App() {
       setEstadoBoton('enviado');
       window.setTimeout(() => {
         setEstadoBoton((current) => (current === 'enviado' ? 'pedido' : current));
-      }, 3000);
+      }, 2000);
     } catch (error) {
       console.warn('No se pudo procesar el pedido', error);
       if (!navigator.onLine) {
@@ -777,7 +777,7 @@ function App() {
         <StatusIndicator {...combinedSync} onSyncClick={combinedSync.forceSync} />
         <div className="header-spacer" />
         <button
-          className="pedido-button"
+          className={`pedido-button pedido-button--${estadoBoton}`}
           type="button"
           onClick={handlePedido}
           disabled={viewMode !== 'estado' || (pendingOrderCount === 0 && offlinePedidoCount === 0) || estadoBoton === 'enviando'}
