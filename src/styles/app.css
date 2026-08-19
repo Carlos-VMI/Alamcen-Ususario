@@ -424,13 +424,18 @@ main {
 .pick-header-collapse {
   background: var(--toolbar-control);
   border-color: var(--toolbar-control-border);
-  color: #f8fafc;
+  color: #fff;
   padding: 0;
+}
+
+.pick-header-collapse svg {
+  color: #fff;
+  stroke: #fff;
 }
 
 .pick-header-collapse:disabled {
   cursor: default;
-  opacity: 0.42;
+  opacity: 1;
 }
 
 .pick-header-collapse:not(:disabled):hover {
@@ -1045,10 +1050,10 @@ main {
 }
 
 .pedido-button--pedido:disabled {
-  background: var(--toolbar-control);
-  border-color: var(--toolbar-control-border);
+  background: rgba(124, 45, 18, 0.6);
+  border-color: transparent;
   box-shadow: none;
-  color: #64748b;
+  color: rgba(254, 215, 170, 0.6);
   filter: none;
   opacity: 1;
 }
