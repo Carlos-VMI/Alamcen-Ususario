@@ -674,7 +674,7 @@ function App() {
       setEstadoBoton('enviado');
       window.setTimeout(() => {
         setEstadoBoton((current) => (current === 'enviado' ? 'pedido' : current));
-      }, 1800);
+      }, 3000);
     } catch (error) {
       console.warn('No se pudo sincronizar la cola offline de pedido', error);
       setEstadoBoton('pendiente');
@@ -741,7 +741,7 @@ function App() {
       setEstadoBoton('enviado');
       window.setTimeout(() => {
         setEstadoBoton((current) => (current === 'enviado' ? 'pedido' : current));
-      }, 1800);
+      }, 3000);
     } catch (error) {
       console.warn('No se pudo procesar el pedido', error);
       if (!navigator.onLine) {
@@ -780,7 +780,7 @@ function App() {
           className="pedido-button"
           type="button"
           onClick={handlePedido}
-          aria-disabled={viewMode !== 'estado' || (pendingOrderCount === 0 && offlinePedidoCount === 0) || estadoBoton === 'enviando'}
+          disabled={viewMode !== 'estado' || (pendingOrderCount === 0 && offlinePedidoCount === 0) || estadoBoton === 'enviando'}
           title={viewMode !== 'estado' ? 'Disponible solo en Estado' : undefined}
         >
           {estadoBoton === 'enviando' ? <span className="pedido-spinner" aria-hidden="true" /> : null}

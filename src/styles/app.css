@@ -625,7 +625,7 @@ main {
 }
 
 .status-indicator.synced {
-  background: rgba(220, 252, 231, 0.16);
+  background: rgba(34, 197, 94, 0.2);
   color: #bbf7d0;
 }
 
@@ -635,8 +635,8 @@ main {
 }
 
 .status-indicator.syncing {
-  background: rgba(219, 234, 254, 0.18);
-  color: #bfdbfe;
+  background: rgba(52, 211, 153, 0.3);
+  color: #d1fae5;
 }
 
 .status-indicator.syncing svg {
@@ -644,7 +644,7 @@ main {
 }
 
 .status-indicator.offline {
-  background: rgba(254, 226, 226, 0.18);
+  background: rgba(248, 113, 113, 0.3);
   color: #fecaca;
 }
 
@@ -940,12 +940,14 @@ main {
   min-height: 38px;
   min-width: 132px;
   padding: 0 16px;
+  transition: opacity 0.5s ease, filter 0.5s ease, transform 0.2s ease;
   width: 132px;
 }
 
 .pedido-button:disabled {
   cursor: not-allowed;
-  opacity: 0.48;
+  filter: grayscale(0.28) saturate(0.65);
+  opacity: 0.5;
 }
 
 .pedido-button[aria-disabled="true"] {
