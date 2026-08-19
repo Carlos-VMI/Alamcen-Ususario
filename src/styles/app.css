@@ -625,21 +625,21 @@ main {
 }
 
 .status-indicator.synced {
-  background: #22c55e;
-  border-color: rgba(187, 247, 208, 0.72);
-  color: #ffffff;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
 }
 
 .status-indicator.pending {
-  background: #f59e0b;
-  border-color: rgba(253, 230, 138, 0.72);
-  color: #ffffff;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
 }
 
 .status-indicator.syncing {
-  background: #10b981;
-  border-color: rgba(209, 250, 229, 0.72);
-  color: #ffffff;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
 }
 
 .status-indicator.syncing svg {
@@ -647,9 +647,9 @@ main {
 }
 
 .status-indicator.offline {
-  background: #e11d48;
-  border-color: rgba(254, 202, 202, 0.72);
-  color: #ffffff;
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
 }
 
 @keyframes spin {
@@ -944,7 +944,7 @@ main {
   min-height: 38px;
   min-width: 132px;
   padding: 0 16px;
-  transition: opacity 1s ease-in-out, filter 1s ease-in-out, transform 0.2s ease;
+  transition: opacity 0.5s ease-in-out, filter 0.5s ease-in-out, transform 0.2s ease;
   width: 132px;
 }
 
@@ -955,7 +955,8 @@ main {
 }
 
 .pedido-button--enviando:disabled,
-.pedido-button--enviado {
+.pedido-button--enviado,
+.pedido-button--enviado:disabled {
   background: var(--order);
   border-color: #dd5d00;
   color: #fff;
