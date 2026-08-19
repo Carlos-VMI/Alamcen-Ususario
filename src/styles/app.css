@@ -72,17 +72,21 @@ button {
 .app-header {
   align-items: center;
   background: var(--header);
+  border-bottom: 1px solid #1e293b;
   color: #fff;
   display: flex;
   gap: 10px;
   gap: 0.625rem;
   height: 64px;
-  justify-content: flex-start;
+  justify-content: space-between;
   min-height: 64px;
-  padding: 0 16px;
+  overflow-x: auto;
+  padding: 8px 24px;
   position: sticky;
+  flex-wrap: nowrap;
   top: 0;
   user-select: none;
+  width: 100%;
   z-index: 10;
 }
 
@@ -1003,9 +1007,9 @@ main {
 .pedido-button {
   align-items: center;
   background: var(--order);
-  border-color: #dd5d00;
+  border-color: transparent;
   border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(2, 6, 23, 0.18);
+  box-shadow: 0 4px 10px rgba(253, 106, 1, 0.24);
   color: #fff;
   display: inline-flex;
   gap: 8px;
@@ -1016,7 +1020,7 @@ main {
   min-height: 36px;
   min-width: 132px;
   padding: 0 16px;
-  transition: opacity 0.5s ease-in-out, filter 0.5s ease-in-out, transform 0.2s ease;
+  transition: opacity 0.5s ease-in-out, filter 0.5s ease-in-out, transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   width: 132px;
 }
 
@@ -1024,19 +1028,32 @@ main {
 .pedido-button--enviando,
 .pedido-button--enviado {
   background: #fd6a01;
+  border-color: transparent;
+  box-shadow: 0 6px 14px rgba(253, 106, 1, 0.28);
+  color: #fff;
+  filter: none;
+  opacity: 1;
 }
 
 .pedido-button:disabled {
   cursor: not-allowed;
-  filter: grayscale(0.28) saturate(0.65);
-  opacity: 0.5;
+}
+
+.pedido-button--pedido:disabled {
+  background: rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.2);
+  box-shadow: none;
+  color: rgba(249, 115, 22, 0.4);
+  filter: none;
+  opacity: 0.6;
 }
 
 .pedido-button--enviando:disabled,
 .pedido-button--enviado,
 .pedido-button--enviado:disabled {
   background: var(--order);
-  border-color: #dd5d00;
+  border-color: transparent;
+  box-shadow: 0 6px 14px rgba(253, 106, 1, 0.28);
   color: #fff;
   filter: none;
   opacity: 1;
