@@ -1,6 +1,8 @@
 :root {
   color-scheme: light;
   --header: #162b4a;
+  --toolbar-control: #18253b;
+  --toolbar-control-border: rgba(51, 65, 85, 0.72);
   --order: #fd6a01;
   --surface: #f2f0ef;
   --panel: #ffffff;
@@ -135,8 +137,8 @@ main {
 
 .view-toggle {
   align-items: center;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  background: var(--toolbar-control);
+  border: 1px solid var(--toolbar-control-border);
   border-radius: 8px;
   display: inline-flex;
   gap: 4px;
@@ -172,8 +174,8 @@ main {
 }
 
 .led-control-button {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  background: var(--toolbar-control);
+  border: 1px solid var(--toolbar-control-border);
   border-radius: 8px;
   color: #e2e8f0;
   font-size: 14px;
@@ -191,7 +193,7 @@ main {
 
 .led-control-button.active,
 .led-control-button:hover {
-  background: #1e293b;
+  background: var(--toolbar-control);
   border-color: rgba(100, 116, 139, 0.78);
 }
 
@@ -379,10 +381,10 @@ main {
 
 .pick-header-input {
   appearance: none;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  color: #f1f5f9;
+  color: #0f172a;
   font: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -394,13 +396,13 @@ main {
 }
 
 .pick-header-input::placeholder {
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .pick-header-input:focus {
-  background: #1e293b;
-  border-color: #64748b;
-  box-shadow: 0 0 0 1px rgba(100, 116, 139, 0.5);
+  background: #f8fafc;
+  border-color: #f97316;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.35);
 }
 
 .pick-header-mic,
@@ -420,9 +422,9 @@ main {
 }
 
 .pick-header-collapse {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(51, 65, 85, 0.6);
-  color: #e2e8f0;
+  background: var(--toolbar-control);
+  border-color: var(--toolbar-control-border);
+  color: #f8fafc;
   padding: 0;
 }
 
@@ -432,18 +434,20 @@ main {
 }
 
 .pick-header-collapse:not(:disabled):hover {
-  background: #1e293b;
+  background: var(--toolbar-control);
+  border-color: rgba(100, 116, 139, 0.78);
 }
 
 .pick-header-mic {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(51, 65, 85, 0.6);
-  color: #e2e8f0;
+  background: var(--toolbar-control);
+  border-color: var(--toolbar-control-border);
+  color: #f8fafc;
   padding: 0;
 }
 
 .pick-header-mic:hover {
-  background: #1e293b;
+  background: var(--toolbar-control);
+  border-color: rgba(100, 116, 139, 0.78);
 }
 
 .pick-header-mic.recording {
@@ -452,14 +456,15 @@ main {
 }
 
 .pick-header-search-button {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(51, 65, 85, 0.6);
-  color: #e2e8f0;
+  background: var(--toolbar-control);
+  border-color: var(--toolbar-control-border);
+  color: #f8fafc;
   padding: 0 12px;
 }
 
 .pick-header-search-button:hover {
-  background: #1e293b;
+  background: var(--toolbar-control);
+  border-color: rgba(100, 116, 139, 0.78);
 }
 
 .pick-header-ready {
@@ -489,8 +494,8 @@ main {
 }
 
 .logout-button {
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(51, 65, 85, 0.6);
+  background: var(--toolbar-control);
+  border-color: var(--toolbar-control-border);
   border-radius: 8px;
   color: #e2e8f0;
   font-size: 14px;
@@ -502,7 +507,7 @@ main {
 }
 
 .logout-button:hover {
-  background: #1e293b;
+  background: var(--toolbar-control);
   border-color: rgba(100, 116, 139, 0.78);
 }
 
@@ -1040,12 +1045,12 @@ main {
 }
 
 .pedido-button--pedido:disabled {
-  background: rgba(249, 115, 22, 0.1);
-  border-color: rgba(249, 115, 22, 0.2);
+  background: var(--toolbar-control);
+  border-color: var(--toolbar-control-border);
   box-shadow: none;
-  color: rgba(249, 115, 22, 0.4);
+  color: #64748b;
   filter: none;
-  opacity: 0.6;
+  opacity: 1;
 }
 
 .pedido-button--enviando:disabled,
