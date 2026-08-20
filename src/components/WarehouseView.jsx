@@ -198,7 +198,7 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
         aria-label={isLeftPanelOpen ? 'Ocultar estanteria principal' : 'Mostrar estanteria principal'}
         title={isLeftPanelOpen ? 'Ocultar estanteria principal' : 'Mostrar estanteria principal'}
         style={{
-          left: isLeftPanelOpen ? 'calc(50% - 12px)' : '0px'
+          left: isLeftPanelOpen ? 'calc(50% - 8px)' : '0px'
         }}
       >
         <span>{isLeftPanelOpen ? '<' : '>'}</span>

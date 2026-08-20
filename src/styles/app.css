@@ -827,17 +827,17 @@ main {
   background: #fff;
   border: 1px solid #cbd5e1;
   border-radius: 999px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
   color: #64748b;
   display: inline-flex;
-  height: 48px;
+  height: 40px;
   justify-content: center;
   padding: 0;
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   transition: left 260ms ease, background 160ms ease, border-color 160ms ease;
-  width: 24px;
+  width: 16px;
   z-index: 50;
 }
 
@@ -853,12 +853,13 @@ main {
 }
 
 .panel-collapse-toggle span {
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 900;
   line-height: 1;
 }
 
 .modules-overview {
+  box-sizing: border-box;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -866,16 +867,17 @@ main {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  padding: 16px;
 }
 
 .modules-overview.expanded {
-  padding-left: 48px;
-  padding-right: 48px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .modules-overview.with-sidebar {
-  padding-left: 0;
-  padding-right: 0;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .modules-overview-grid {
@@ -1271,12 +1273,12 @@ main {
 
 .shelf-row {
   align-items: stretch;
-  display: grid;
+  display: flex;
   gap: 4px;
-  grid-template-columns: 24px minmax(0, 1fr);
   flex: 1 1 0;
   min-height: 0;
   margin: 0;
+  overflow: hidden;
 }
 
 .row-label {
@@ -1286,6 +1288,7 @@ main {
   border-radius: 4px 0 0 4px;
   color: #fff;
   display: flex;
+  flex: 0 0 24px;
   font-size: 10px;
   font-weight: 900;
   justify-content: center;
@@ -1300,23 +1303,28 @@ main {
 
 .shelf-cells {
   display: grid;
+  flex: 1 1 auto;
   gap: 0;
   grid-template-rows: minmax(0, 1fr) 14px;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .shelf-card-row {
   display: grid;
-  gap: 3px;
+  gap: 0;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .shelf-slot {
-  display: block;
+  align-items: stretch;
+  display: flex;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .sku-cell {
@@ -1325,10 +1333,13 @@ main {
   border: 1px solid rgba(17, 24, 39, 0.18);
   border-radius: 4px;
   display: grid;
+  flex: 1 1 auto;
   gap: 3px;
   grid-template-rows: auto 1fr;
+  margin: 2px;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
   padding: 3px;
   position: relative;
   width: 100%;
@@ -1422,7 +1433,7 @@ main {
 
 .item-card {
   grid-template-rows: auto 1fr;
-  min-height: 100px;
+  min-height: 0;
 }
 
 .item-card.assigned {
@@ -1526,19 +1537,25 @@ main {
 
 .cubeta-grid {
   display: grid;
-  gap: 2px;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .cubeta-card {
   border: 1px solid rgba(17, 24, 39, 0.24);
   border-radius: 4px;
   color: #fff;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1px;
-  grid-template-rows: 1fr auto auto;
+  justify-content: center;
+  margin: 2px;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
   padding: 2px 2px;
   text-align: center;
   user-select: none;
@@ -2194,15 +2211,15 @@ main {
   }
 
   .shelf-row {
-    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 4px;
   }
 
   .shelf-cells {
-    gap: 3px;
+    gap: 0;
   }
 
   .sku-cell {
-    padding: 5px 4px;
+    padding: 3px;
   }
 
   .cubeta-card {
