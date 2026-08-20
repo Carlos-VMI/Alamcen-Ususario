@@ -1310,7 +1310,7 @@ main {
   display: grid;
   flex: 1 1 auto;
   gap: 0;
-  grid-template-rows: minmax(0, 1fr) 18px;
+  grid-template-rows: minmax(0, 1fr) 16px;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -1489,6 +1489,7 @@ main {
   display: grid;
   gap: 5px;
   min-width: 0;
+  padding-bottom: 4px;
 }
 
 .item-card-body strong,
@@ -1520,6 +1521,8 @@ main {
   font-size: 11px;
   font-style: normal;
   font-weight: 800;
+  line-height: 1;
+  margin-bottom: 2px;
   white-space: nowrap;
 }
 
@@ -1589,11 +1592,11 @@ main {
   font-weight: 900;
   justify-content: center;
   line-height: 1;
-  min-height: 20px;
-  padding-bottom: 2px;
-  padding-top: 2px;
+  min-height: 14px;
+  padding: 0 1px 1px;
   pointer-events: none;
   text-shadow: none;
+  transform: translateY(-1px);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -1605,8 +1608,8 @@ main {
   display: grid;
   align-items: center;
   margin-top: 1px;
-  min-height: 24px;
-  padding: 2px 0;
+  min-height: 16px;
+  padding: 1px 0;
   overflow: hidden;
 }
 
