@@ -841,6 +841,12 @@ main {
   z-index: 50;
 }
 
+.panel-collapse-toggle.is-closed {
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+  left: 0;
+}
+
 .panel-collapse-toggle:hover {
   background: #f8fafc;
   color: #2563eb;
@@ -860,6 +866,16 @@ main {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.modules-overview.expanded {
+  padding-left: 48px;
+  padding-right: 48px;
+}
+
+.modules-overview.with-sidebar {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .modules-overview-grid {
@@ -916,9 +932,11 @@ main {
 
 .overview-module-placeholder {
   background: transparent;
-  border: 2px dashed rgba(148, 163, 184, 0.34);
+  border: 0;
   box-shadow: none;
+  opacity: 0;
   pointer-events: none;
+  visibility: hidden;
 }
 
 .overview-module-placeholder:hover {
@@ -1001,6 +1019,14 @@ main {
   transform: scale(0.9);
   transform-origin: center;
   width: 100%;
+}
+
+.module-panel-body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 3px;
+  grid-template-rows: repeat(8, minmax(0, 1fr));
+  min-height: 0;
 }
 
 .overview-row {
@@ -1222,7 +1248,7 @@ main {
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  padding: 0 8px 10px;
+  padding: 0 6px 6px;
   width: 100%;
 }
 
@@ -1233,12 +1259,12 @@ main {
   color: #111827;
   cursor: default;
   display: flex;
-  font-size: 15px;
+  font-size: 12px;
   flex: 0 0 auto;
-  height: 42px;
+  height: 34px;
   justify-content: center;
-  margin: 0 -8px 6px;
-  padding: 0 8px;
+  margin: 0 -6px 4px;
+  padding: 0 6px;
   text-align: center;
   user-select: none;
 }
@@ -1246,11 +1272,11 @@ main {
 .shelf-row {
   align-items: stretch;
   display: grid;
-  gap: 5px;
+  gap: 4px;
   grid-template-columns: 24px minmax(0, 1fr);
   flex: 1 1 0;
   min-height: 0;
-  margin-bottom: 4px;
+  margin: 0;
 }
 
 .row-label {
@@ -1260,7 +1286,7 @@ main {
   border-radius: 4px 0 0 4px;
   color: #fff;
   display: flex;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   justify-content: center;
   text-shadow: none;
@@ -1275,14 +1301,14 @@ main {
 .shelf-cells {
   display: grid;
   gap: 0;
-  grid-template-rows: minmax(0, 1fr) 16px;
+  grid-template-rows: minmax(0, 1fr) 14px;
   min-height: 0;
   min-width: 0;
 }
 
 .shelf-card-row {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   min-height: 0;
   min-width: 0;
 }
@@ -1299,11 +1325,11 @@ main {
   border: 1px solid rgba(17, 24, 39, 0.18);
   border-radius: 4px;
   display: grid;
-  gap: 4px;
+  gap: 3px;
   grid-template-rows: auto 1fr;
   min-height: 0;
   min-width: 0;
-  padding: 4px;
+  padding: 3px;
   position: relative;
   width: 100%;
 }
@@ -1483,7 +1509,7 @@ main {
 
 .sku-cell-head strong {
   color: #111827;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1492,7 +1518,7 @@ main {
 
 .sku-cell-head span {
   color: #667085;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -1500,7 +1526,7 @@ main {
 
 .cubeta-grid {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -1509,11 +1535,11 @@ main {
   border-radius: 4px;
   color: #fff;
   display: grid;
-  gap: 2px;
+  gap: 1px;
   grid-template-rows: 1fr auto auto;
   min-height: 0;
   min-width: 0;
-  padding: 4px 3px;
+  padding: 2px 2px;
   text-align: center;
   user-select: none;
 }
@@ -1594,7 +1620,7 @@ main {
 }
 
 .cubeta-card strong {
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1.05;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1603,7 +1629,7 @@ main {
 
 .cubeta-card small,
 .cubeta-card em {
-  font-size: 9px;
+  font-size: 8px;
   font-style: normal;
   font-weight: 800;
   line-height: 1.05;

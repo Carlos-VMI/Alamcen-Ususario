@@ -87,55 +87,57 @@ function ModulePanel({ moduleName, shelves, estadosById, operatorRole, viewMode,
   return (
     <div className="module-panel">
       <h2>{moduleName}</h2>
-      {Array.from({ length: 8 }, (_, index) => {
-        const rowNumber = String(index + 1);
-        const rowShelves = rows[rowNumber] ?? rows[index + 1] ?? [];
-        const sortedShelves = [...rowShelves].sort((a, b) => Number(a.posicion) - Number(b.posicion));
+      <div className="module-panel-body">
+        {Array.from({ length: 8 }, (_, index) => {
+          const rowNumber = String(index + 1);
+          const rowShelves = rows[rowNumber] ?? rows[index + 1] ?? [];
+          const sortedShelves = [...rowShelves].sort((a, b) => Number(a.posicion) - Number(b.posicion));
 
-        return (
-          <div className="shelf-row" key={`${moduleName}-${rowNumber}`}>
-            <span className="row-label">{rowNumber}</span>
-            <div className="shelf-cells">
-              {sortedShelves.length > 0 ? (
-                <>
-                  <div
-                    className="shelf-card-row"
-                    style={{
-                      gridTemplateColumns: gridTemplateForShelves(sortedShelves)
-                    }}
-                  >
-                    {sortedShelves.map((balda) => (
-                      <div className="shelf-slot" key={balda.id}>
-                        <BaldaCard
-                          balda={balda}
-                          estadosById={estadosById}
-                          operatorRole={operatorRole}
-                          viewMode={viewMode}
-                          pickLightStates={pickLightStates}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div
-                    className="shelf-column-bar"
-                    style={{
-                      gridTemplateColumns: gridTemplateForShelves(sortedShelves)
-                    }}
-                  >
-                    {sortedShelves.map((balda) => (
-                      <span className="column-label" key={`${balda.id}-label`}>
-                        {balda.etiqueta_balda ?? `C${balda.posicion}`}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <span className="empty-row" aria-hidden="true" />
-              )}
+          return (
+            <div className="shelf-row" key={`${moduleName}-${rowNumber}`}>
+              <span className="row-label">{rowNumber}</span>
+              <div className="shelf-cells">
+                {sortedShelves.length > 0 ? (
+                  <>
+                    <div
+                      className="shelf-card-row"
+                      style={{
+                        gridTemplateColumns: gridTemplateForShelves(sortedShelves)
+                      }}
+                    >
+                      {sortedShelves.map((balda) => (
+                        <div className="shelf-slot" key={balda.id}>
+                          <BaldaCard
+                            balda={balda}
+                            estadosById={estadosById}
+                            operatorRole={operatorRole}
+                            viewMode={viewMode}
+                            pickLightStates={pickLightStates}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      className="shelf-column-bar"
+                      style={{
+                        gridTemplateColumns: gridTemplateForShelves(sortedShelves)
+                      }}
+                    >
+                      {sortedShelves.map((balda) => (
+                        <span className="column-label" key={`${balda.id}-label`}>
+                          {balda.etiqueta_balda ?? `C${balda.posicion}`}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <span className="empty-row" aria-hidden="true" />
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -190,7 +192,7 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
   return (
     <section className="warehouse-screen split-layout">
       <button
-        className="panel-collapse-toggle panel-collapse-toggle--minimal"
+        className={`panel-collapse-toggle panel-collapse-toggle--minimal ${isLeftPanelOpen ? 'is-open' : 'is-closed'}`}
         type="button"
         onClick={() => setIsLeftPanelOpen((value) => !value)}
         aria-label={isLeftPanelOpen ? 'Ocultar estanteria principal' : 'Mostrar estanteria principal'}
