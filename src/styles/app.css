@@ -68,7 +68,11 @@ button {
 }
 
 .app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .app-header {
@@ -110,7 +114,10 @@ button {
 }
 
 main {
-  padding: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px 16px 16px;
 }
 
 .app-header-actions {
@@ -779,28 +786,101 @@ main {
 }
 
 .warehouse-screen {
-  display: grid;
+  display: flex;
   gap: 14px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .split-layout {
-  align-items: start;
-  grid-template-columns: minmax(0, 50%) minmax(0, 50%);
+  align-items: stretch;
+  position: relative;
 }
 
 .active-module-area {
+  flex: 0 0 55%;
   min-width: 0;
+  overflow: hidden;
+  transition: all 300ms ease-in-out;
+}
+
+.active-module-area.collapsed {
+  flex-basis: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  width: 0;
+}
+
+.active-module-stage {
+  display: flex;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-collapse-toggle {
+  align-items: center;
+  background: var(--toolbar-control);
+  border: 1px solid var(--toolbar-control-border);
+  border-radius: 0 8px 8px 0;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+  color: #fff;
+  display: inline-flex;
+  height: 48px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: left 260ms ease, background 160ms ease, border-color 160ms ease;
+  width: 24px;
+  z-index: 50;
+}
+
+.panel-collapse-toggle:hover {
+  background: #1f3353;
+}
+
+.panel-collapse-toggle span {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .modules-overview {
-  display: grid;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   gap: 12px;
-  grid-template-columns: repeat(auto-fill, 300px);
-  justify-content: start;
-  max-height: calc(100vh - 104px);
-  overflow: auto;
-  position: sticky;
-  top: 88px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modules-overview-grid {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 12px;
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modules-pagination {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 8px 12px;
 }
 
 .overview-module {
@@ -813,18 +893,18 @@ main {
   flex-direction: column;
   gap: 7px;
   flex-shrink: 0;
-  height: 220px;
-  min-height: 220px;
-  max-height: 220px;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
   min-width: 0;
   justify-items: stretch;
   justify-content: flex-start;
   overflow: hidden;
   padding: 9px;
   text-align: center;
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
 }
 
 .top-error,
@@ -1120,6 +1200,9 @@ main {
   border-right: 7px solid #2f5e94;
   border-radius: 6px;
   box-shadow: 0 12px 30px rgba(31, 41, 51, 0.08);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   min-width: 0;
   padding: 0 8px 10px;
   width: 100%;
@@ -1133,9 +1216,10 @@ main {
   cursor: default;
   display: flex;
   font-size: 15px;
-  height: 48px;
+  flex: 0 0 auto;
+  height: 42px;
   justify-content: center;
-  margin: 0 -8px 8px;
+  margin: 0 -8px 6px;
   padding: 0 8px;
   text-align: center;
   user-select: none;
@@ -1146,8 +1230,9 @@ main {
   display: grid;
   gap: 5px;
   grid-template-columns: 24px minmax(0, 1fr);
-  min-height: 120px;
-  margin-bottom: 7px;
+  flex: 1 1 0;
+  min-height: 0;
+  margin-bottom: 4px;
 }
 
 .row-label {
@@ -1173,20 +1258,20 @@ main {
   display: grid;
   gap: 0;
   grid-template-rows: minmax(0, 1fr) 16px;
-  min-height: 120px;
+  min-height: 0;
   min-width: 0;
 }
 
 .shelf-card-row {
   display: grid;
   gap: 4px;
-  min-height: 100px;
+  min-height: 0;
   min-width: 0;
 }
 
 .shelf-slot {
   display: block;
-  min-height: 100px;
+  min-height: 0;
   min-width: 0;
 }
 
@@ -1198,7 +1283,7 @@ main {
   display: grid;
   gap: 4px;
   grid-template-rows: auto 1fr;
-  min-height: 100px;
+  min-height: 0;
   min-width: 0;
   padding: 4px;
   position: relative;
@@ -1408,9 +1493,9 @@ main {
   display: grid;
   gap: 2px;
   grid-template-rows: 1fr auto auto;
-  min-height: 50px;
+  min-height: 0;
   min-width: 0;
-  padding: 5px 3px;
+  padding: 4px 3px;
   text-align: center;
   user-select: none;
 }
@@ -1521,8 +1606,48 @@ main {
   grid-row: 1 / -1;
   justify-content: center;
   height: 100%;
-  min-height: 120px;
+  min-height: 0;
   pointer-events: none;
+}
+
+.modules-pagination-button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #334155;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 12px;
+}
+
+.modules-pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.modules-pagination-dots {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.modules-pagination-dots span {
+  background: #cbd5e1;
+  border-radius: 999px;
+  display: block;
+  height: 8px;
+  width: 8px;
+}
+
+.modules-pagination-dots span.active {
+  background: #2f5e94;
+  transform: scale(1.15);
 }
 
 .empty-state {
@@ -2006,35 +2131,38 @@ main {
   }
 
   .split-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .modules-overview {
-    grid-template-columns: repeat(auto-fill, 300px);
-    justify-content: start;
-    max-height: none;
-    order: -1;
-    overflow-x: auto;
-    position: static;
+    height: 42%;
+    order: 2;
+  }
+
+  .active-module-area {
+    flex-basis: auto;
+    height: 58%;
+    order: 1;
+  }
+
+  .modules-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .shelf-row {
     grid-template-columns: 24px minmax(0, 1fr);
-    min-height: 120px;
   }
 
   .shelf-cells {
     gap: 3px;
-    min-height: 120px;
   }
 
   .sku-cell {
-    min-height: 100px;
-    padding: 6px 4px;
+    padding: 5px 4px;
   }
 
   .cubeta-card {
-    min-height: 48px;
+    min-height: 0;
   }
 
   .pick-command-panel {
