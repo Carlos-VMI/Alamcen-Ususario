@@ -154,7 +154,7 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const normalizedRole = String(operatorRole || 'operario').toLowerCase();
-  const pageSize = 6;
+  const pageSize = isLeftPanelOpen ? 9 : 18;
   const totalPages = Math.max(1, Math.ceil(moduleEntries.length / pageSize));
 
   useEffect(() => {
@@ -163,7 +163,11 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
 
   const visibleModuleEntries = useMemo(() => (
     moduleEntries.slice(currentPage * pageSize, currentPage * pageSize + pageSize)
-  ), [currentPage, moduleEntries]);
+  ), [currentPage, moduleEntries, pageSize]);
+
+  const pageSlots = useMemo(() => (
+    Array.from({ length: pageSize }, (_, index) => visibleModuleEntries[index] ?? null)
+  ), [pageSize, visibleModuleEntries]);
 
   useEffect(() => {
     if (!moduleEntries.length) return;
@@ -186,13 +190,13 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
   return (
     <section className="warehouse-screen split-layout">
       <button
-        className="panel-collapse-toggle"
+        className="panel-collapse-toggle panel-collapse-toggle--minimal"
         type="button"
         onClick={() => setIsLeftPanelOpen((value) => !value)}
         aria-label={isLeftPanelOpen ? 'Ocultar estanteria principal' : 'Mostrar estanteria principal'}
         title={isLeftPanelOpen ? 'Ocultar estanteria principal' : 'Mostrar estanteria principal'}
         style={{
-          left: isLeftPanelOpen ? 'calc(55% - 12px)' : '0px'
+          left: isLeftPanelOpen ? 'calc(50% - 12px)' : '0px'
         }}
       >
         <span>{isLeftPanelOpen ? '<' : '>'}</span>
@@ -214,31 +218,40 @@ export function WarehouseView({ config, estados, operatorRole = 'operario', view
       </div>
 
       <aside className={`modules-overview ${isLeftPanelOpen ? 'with-sidebar' : 'expanded'}`} aria-label="Vista general de modulos">
-        <div className="modules-overview-grid">
-          {visibleModuleEntries.map(([moduleName, shelves]) => (
-            <button
-              className={`overview-module ${moduleName === activeModuleName ? 'active' : ''}`}
-              key={moduleName}
-              type="button"
-              onClick={() => {
-                setIsLeftPanelOpen(true);
-                setActiveModuleName(moduleName);
-              }}
-            >
-              <strong>
-                <span>{moduleName}</span>
-              </strong>
-              <ModulePanel
-                moduleName={moduleName}
-                shelves={shelves}
-                estadosById={estadosById}
-                operatorRole={normalizedRole}
-                viewMode={viewMode}
-                pickLightStates={pickLightStates}
-                compact
-              />
-            </button>
-          ))}
+        <div className={`modules-overview-grid ${isLeftPanelOpen ? 'grid-open' : 'grid-collapsed'}`}>
+          {pageSlots.map((entry, index) => {
+            if (!entry) {
+              return (
+                <div className="overview-module overview-module-placeholder" key={`module-slot-${currentPage}-${index}`} aria-hidden="true" />
+              );
+            }
+
+            const [moduleName, shelves] = entry;
+            return (
+              <button
+                className={`overview-module ${moduleName === activeModuleName ? 'active' : ''}`}
+                key={moduleName}
+                type="button"
+                onClick={() => {
+                  setIsLeftPanelOpen(true);
+                  setActiveModuleName(moduleName);
+                }}
+              >
+                <strong>
+                  <span>{moduleName}</span>
+                </strong>
+                <ModulePanel
+                  moduleName={moduleName}
+                  shelves={shelves}
+                  estadosById={estadosById}
+                  operatorRole={normalizedRole}
+                  viewMode={viewMode}
+                  pickLightStates={pickLightStates}
+                  compact
+                />
+              </button>
+            );
+          })}
         </div>
 
         <div className="modules-pagination" aria-label="Paginacion de modulos">
